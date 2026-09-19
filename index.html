@@ -176,42 +176,70 @@
     .shape-gmm .detail { max-width: 93px; }
     .sink {
       --intensity: 0;
+      --angle: 0deg;
+      --reach: 56px;
+      --slime: 0;
       position: fixed;
       z-index: 0;
-      left: 58vw;
-      bottom: calc(env(safe-area-inset-bottom) + 114px);
-      width: 220px;
-      height: 220px;
+      left: -96px;
+      top: 50%;
+      width: 240px;
+      height: 300px;
       pointer-events: none;
-      opacity: 0;
-      transform: translateX(-50%);
-      transition: opacity 100ms linear;
+      opacity: .2;
+      transform: translateY(-50%);
+      transition: opacity 120ms linear;
     }
     body.drag-active .sink {
-      opacity: calc(.48 + var(--intensity) * .48);
+      opacity: calc(.38 + var(--intensity) * .58);
     }
     .sink::before {
       content: "";
       position: absolute;
-      inset: -54px -112px;
+      inset: -24px;
       border-radius: 50%;
       background: radial-gradient(ellipse at center,
-        rgb(9 122 58 / 42%) 0%,
-        rgb(6 91 43 / 31%) 27%,
-        rgb(3 57 27 / 19%) 49%,
-        rgb(2 32 15 / 9%) 68%,
-        rgb(0 9 4 / 0%) 86%);
-      filter: blur(24px) drop-shadow(0 0 24px rgb(5 81 39 / 28%));
-      transform: scale(calc(.94 + var(--intensity) * .12));
+        rgb(0 0 0 / 0%) 0 36%,
+        rgb(1 22 10 / 20%) 42%,
+        rgb(7 120 56 / 58%) 50%,
+        rgb(5 78 37 / 32%) 58%,
+        rgb(2 38 18 / 15%) 68%,
+        rgb(0 9 4 / 0%) 79%);
+      filter: blur(16px) drop-shadow(0 0 24px rgb(5 90 42 / 30%));
+      transform: scale(calc(.98 + var(--intensity) * .08));
       transition: transform 90ms linear, filter 90ms linear;
     }
-    .sink.magnetic::before { filter: blur(23px) brightness(1.3) drop-shadow(0 0 30px rgb(7 119 56 / 44%)); }
-    .sink.engaged::before {
-      filter: blur(21px) brightness(1.72) drop-shadow(0 0 38px rgb(9 148 68 / 60%));
-      transform: scale(1.02);
+    .sink::after {
+      content: "";
+      position: absolute;
+      z-index: 1;
+      left: 50%;
+      top: 50%;
+      width: var(--reach);
+      height: calc(28px + var(--slime) * 44px);
+      border-radius: 42% 72% 68% 40% / 56% 48% 58% 44%;
+      background:
+        radial-gradient(ellipse at 92% 50%, rgb(12 157 72 / 52%) 0%, rgb(7 104 49 / 28%) 28%, transparent 62%),
+        linear-gradient(90deg, rgb(6 86 41 / 56%), rgb(7 125 58 / 34%) 64%, rgb(7 87 42 / 8%) 100%);
+      filter: blur(13px) drop-shadow(0 0 18px rgb(7 118 55 / 34%));
+      opacity: 0;
+      transform: translateY(-50%) rotate(var(--angle));
+      transform-origin: left center;
+      transition: width 80ms linear, height 80ms linear, opacity 80ms linear, filter 80ms linear;
     }
+    body.drag-active .sink::after {
+      opacity: calc(.05 + var(--slime) * .78);
+    }
+    .sink.magnetic::before { filter: blur(15px) brightness(1.3) drop-shadow(0 0 30px rgb(7 119 56 / 46%)); }
+    .sink.magnetic::after { filter: blur(11px) brightness(1.22) drop-shadow(0 0 26px rgb(8 137 63 / 48%)); }
+    .sink.engaged::before {
+      filter: blur(14px) brightness(1.7) drop-shadow(0 0 38px rgb(9 148 68 / 62%));
+      transform: scale(.94);
+    }
+    .sink.engaged::after { filter: blur(9px) brightness(1.55) drop-shadow(0 0 34px rgb(10 160 73 / 62%)); }
     .sink.absorbing { opacity: 1; }
     .sink.absorbing::before { animation: absorb 520ms cubic-bezier(.45,0,.18,1) forwards; }
+    .sink.absorbing::after { animation: slime-absorb 520ms cubic-bezier(.45,0,.18,1) forwards; }
     @keyframes absorb {
       0% { transform: scale(1.02); opacity: 1; filter: blur(21px) brightness(1.5) drop-shadow(0 0 30px rgb(8 132 62 / 56%)); }
       22% { transform: scale(1.12); opacity: 1; filter: blur(20px) brightness(1.95) drop-shadow(0 0 44px rgb(12 175 80 / 72%)); }
@@ -219,15 +247,21 @@
       80% { transform: scale(.18); opacity: .9; filter: blur(10px) brightness(2.35) drop-shadow(0 0 24px rgb(8 147 67 / 72%)); }
       100% { transform: scale(.03); opacity: 0; filter: blur(4px) brightness(1.2) drop-shadow(0 0 0 rgb(0 0 0 / 0%)); }
     }
+    @keyframes slime-absorb {
+      0% { opacity: .92; transform: translateY(-50%) rotate(var(--angle)) scaleX(1); }
+      42% { opacity: 1; transform: translateY(-50%) rotate(var(--angle)) scaleX(.72) scaleY(1.18); }
+      78% { opacity: .82; transform: translateY(-50%) rotate(var(--angle)) scaleX(.22) scaleY(.7); }
+      100% { opacity: 0; transform: translateY(-50%) rotate(var(--angle)) scaleX(.02) scaleY(.18); }
+    }
     @media (min-width: 600px) {
       .sink {
-        left: 46vw;
-        bottom: calc(env(safe-area-inset-bottom) + 48px);
-        width: 250px;
-        height: 240px;
+        left: -115px;
+        top: 50%;
+        width: 280px;
+        height: 340px;
       }
       .sink::before {
-        inset: -78px -170px;
+        inset: -34px;
       }
     }
     .thumb-keyboard {
@@ -429,7 +463,7 @@
     const commandForm = document.querySelector("#command-form");
     const commandInput = document.querySelector("#command-input");
     const response = document.querySelector("#response");
-    const buildVersion = "terminal-012";
+    const buildVersion = "terminal-013";
     const storageKey = "today-os-state-v2";
     const cards = new Map();
     const state = new Map();
@@ -445,13 +479,13 @@
     const keyTimers = new WeakMap();
 
     const keyboardLayout = [
-      ["q", 6, 8], ["w", 15.25, 8], ["e", 24.5, 8], ["r", 33.75, 8], ["t", 43, 8],
-      ["a", 7, 32], ["s", 16.5, 32], ["d", 26, 32], ["f", 35.5, 32], ["g", 45, 32],
-      ["z", 9, 56], ["x", 18.5, 56], ["c", 28, 56], ["v", 37.5, 56], ["b", 47, 56],
-      ["y", 57, 8], ["u", 66.25, 8], ["i", 75.5, 8], ["o", 84.75, 8], ["p", 94, 8],
-      ["h", 59, 32], ["j", 70, 32], ["k", 81, 32], ["l", 92, 32],
-      ["n", 63, 56], ["m", 74, 56],
-      ["space-left", 25, 96], ["space-right", 69, 96], ["backspace", 85, 96], ["enter", 93, 74]
+      ["q", 5.5, 8], ["w", 14.125, 8], ["e", 22.75, 8], ["r", 31.375, 8], ["t", 40, 8],
+      ["a", 6.5, 32], ["s", 15.25, 32], ["d", 24, 32], ["f", 32.75, 32], ["g", 41.5, 32],
+      ["z", 8, 56], ["x", 16.75, 56], ["c", 25.5, 56], ["v", 34.25, 56], ["b", 43, 56],
+      ["y", 60, 8], ["u", 68.625, 8], ["i", 77.25, 8], ["o", 85.875, 8], ["p", 94.5, 8],
+      ["h", 58.5, 32], ["j", 70.25, 32], ["k", 82, 32], ["l", 93.75, 32],
+      ["n", 61, 56], ["m", 73, 56], ["backspace", 88, 56],
+      ["space-left", 23, 96], ["space-right", 70, 96], ["enter", 93, 78]
     ];
 
     const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
@@ -593,8 +627,14 @@
       const distance = Math.hypot(deltaX, deltaY);
       const intensity = clamp(1 - (distance - 118) / 420, 0, 1);
       const cardGlow = clamp(1 - (distance - 118) / 180, 0, 1);
+      const slime = clamp(1 - (distance - 118) / 300, 0, 1);
+      const reach = Math.min(distance, Math.max(56, (420 - distance) * 1.22));
+      const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
       pointer.inside = distance < 118;
       sink.style.setProperty("--intensity", intensity.toFixed(3));
+      sink.style.setProperty("--slime", slime.toFixed(3));
+      sink.style.setProperty("--reach", `${reach.toFixed(1)}px`);
+      sink.style.setProperty("--angle", `${angle.toFixed(2)}deg`);
       sink.classList.toggle("magnetic", distance < 205);
       sink.classList.toggle("engaged", pointer.inside);
       card.style.setProperty("--sink-glow", cardGlow.toFixed(3));
@@ -606,6 +646,9 @@
     function clearSink(card) {
       document.body.classList.remove("drag-active");
       sink.style.setProperty("--intensity", "0");
+      sink.style.setProperty("--slime", "0");
+      sink.style.setProperty("--reach", "56px");
+      sink.style.setProperty("--angle", "0deg");
       sink.classList.remove("absorbing", "magnetic", "engaged");
       if (card) {
         card.style.removeProperty("--hold-scale");
