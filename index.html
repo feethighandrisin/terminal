@@ -33,12 +33,14 @@
       touch-action: pan-x;
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
+      background: transparent;
       cursor: grab;
     }
     .viewport::-webkit-scrollbar { display: none; }
     .viewport.panning { cursor: grabbing; }
     .world {
       position: relative;
+      z-index: 1;
       min-width: 100%;
       height: 100%;
     }
@@ -46,15 +48,13 @@
       --x: 0px;
       --y: 0px;
       --rotation: 0deg;
-      --finish-rotation: 0deg;
-      --finish-scale: 1;
       position: absolute;
       top: 0;
       left: 0;
       width: var(--w);
       min-height: var(--h);
       color: #858585;
-      transform: translate3d(var(--x), var(--y), 0) rotate(calc(var(--rotation) + var(--finish-rotation))) scale(var(--finish-scale));
+      transform: translate3d(var(--x), var(--y), 0) rotate(var(--rotation));
       transform-origin: center;
       touch-action: none;
       user-select: none;
@@ -85,12 +85,29 @@
       transition: transform 420ms cubic-bezier(.22,.8,.28,1);
     }
     .card.completing {
-      opacity: 0;
-      filter: blur(3px);
-      transition:
-        transform 440ms cubic-bezier(.4,0,.3,1),
-        opacity 390ms cubic-bezier(.5,0,.8,.2),
-        filter 390ms ease;
+      animation: card-absorb 520ms cubic-bezier(.42,0,.22,1) forwards;
+    }
+    @keyframes card-absorb {
+      0% {
+        transform: translate3d(var(--from-x), var(--from-y), 0) rotate(var(--rotation)) scale(.9);
+        opacity: 1;
+        filter: blur(0);
+      }
+      42% {
+        transform: translate3d(var(--to-x), var(--to-y), 0) rotate(calc(var(--rotation) + 4deg)) scale(.65);
+        opacity: 1;
+        filter: blur(1px);
+      }
+      78% {
+        transform: translate3d(var(--to-x), var(--to-y), 0) rotate(calc(var(--rotation) + 8deg)) scale(.2);
+        opacity: .9;
+        filter: blur(4px);
+      }
+      100% {
+        transform: translate3d(var(--to-x), var(--to-y), 0) rotate(calc(var(--rotation) + 11deg)) scale(0);
+        opacity: 0;
+        filter: blur(8px);
+      }
     }
     .shape-work { --w: 164px; --h: 154px; --surface: #141414; --radius: 23px; }
     .shape-message { --w: 154px; --h: 92px; --surface: #111; --radius: 20px; }
@@ -149,47 +166,111 @@
       --intensity: 0;
       --angle: 0deg;
       position: fixed;
-      z-index: 1;
-      left: calc(env(safe-area-inset-left) - 18px);
-      bottom: calc(env(safe-area-inset-bottom) + 72px);
-      width: 190px;
-      height: 190px;
+      z-index: 0;
+      left: 58vw;
+      bottom: calc(env(safe-area-inset-bottom) + 114px);
+      width: 220px;
+      height: 220px;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 120ms linear;
+      transform: translateX(-50%);
+      transition: opacity 100ms linear;
     }
     body.drag-active .sink {
-      opacity: calc(.035 + var(--intensity) * .78);
+      opacity: calc(.24 + var(--intensity) * .76);
     }
     .sink::before {
       content: "";
       position: absolute;
-      inset: 24px;
+      inset: 8px;
       border-radius: 50%;
-      background: radial-gradient(ellipse at center, rgb(4 46 24 / 88%) 0%, rgb(2 26 14 / 62%) 34%, rgb(0 8 4 / 0%) 72%);
-      filter: blur(14px);
-      transform: scale(calc(.55 + var(--intensity) * .52));
-      transition: transform 80ms linear;
+      background: radial-gradient(circle at center,
+        #000 0 18%,
+        rgb(0 5 2 / 98%) 22%,
+        rgb(7 78 38 / 82%) 31%,
+        rgb(3 53 26 / 62%) 45%,
+        rgb(1 24 12 / 32%) 59%,
+        rgb(0 8 4 / 0%) 75%);
+      filter: blur(10px);
+      transform: scale(calc(.78 + var(--intensity) * .34));
+      transition: transform 90ms linear, filter 90ms linear;
     }
     .sink::after {
       content: "";
       position: absolute;
       left: 50%;
-      top: 47%;
-      width: 116px;
-      height: 28px;
+      top: 48%;
+      width: 138px;
+      height: 34px;
       border-radius: 50%;
-      background: linear-gradient(90deg, rgb(5 49 25 / 55%), rgb(1 18 9 / 0%));
-      filter: blur(13px);
-      opacity: var(--intensity);
-      transform: rotate(var(--angle)) scaleX(calc(.35 + var(--intensity) * 1.1));
+      background: linear-gradient(90deg, rgb(8 94 46 / 68%), rgb(2 36 18 / 28%) 55%, rgb(0 8 4 / 0%));
+      filter: blur(12px);
+      opacity: calc(.08 + var(--intensity) * .92);
+      transform: rotate(var(--angle)) scaleX(calc(.38 + var(--intensity) * 1.2));
       transform-origin: left center;
     }
-    .sink.absorbing::before { animation: absorb 450ms cubic-bezier(.5,0,.2,1); }
+    .sink-core {
+      position: absolute;
+      z-index: 1;
+      left: 50%;
+      top: 50%;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: #000;
+      box-shadow: 0 0 0 1px rgb(11 103 51 / 46%), 0 0 20px rgb(5 83 41 / 38%);
+      transform: translate(-50%, -50%) scale(calc(1.04 - var(--intensity) * .16));
+      transition: transform 90ms linear, box-shadow 90ms linear;
+    }
+    .sink.magnetic::before { filter: blur(9px) brightness(1.14); }
+    .sink.engaged::before {
+      filter: blur(8px) brightness(1.35);
+      transform: scale(.94);
+    }
+    .sink.engaged .sink-core {
+      box-shadow: 0 0 0 1px rgb(18 142 68 / 78%), 0 0 28px rgb(7 112 53 / 62%);
+      transform: translate(-50%, -50%) scale(.78);
+    }
+    .sink-center-dot {
+      position: absolute;
+      z-index: 3;
+      left: 50%;
+      top: 50%;
+      width: 2px;
+      height: 2px;
+      border-radius: 50%;
+      background: #36b86e;
+      box-shadow: 0 0 3px #27945a;
+      transform: translate(-50%, -50%);
+    }
+    .sink.absorbing { opacity: 1; }
+    .sink.absorbing::before { animation: absorb 520ms cubic-bezier(.45,0,.18,1) forwards; }
+    .sink.absorbing::after { animation: absorb-trail 520ms cubic-bezier(.45,0,.18,1) forwards; }
+    .sink.absorbing .sink-core { animation: absorb-core 520ms cubic-bezier(.45,0,.18,1) forwards; }
     @keyframes absorb {
-      0% { transform: scale(1.08); opacity: 1; }
-      55% { transform: scale(.82); opacity: .95; }
-      100% { transform: scale(.18); opacity: 0; }
+      0% { transform: scale(.94); opacity: 1; filter: blur(8px) brightness(1.25); }
+      22% { transform: scale(1.08); opacity: 1; filter: blur(8px) brightness(1.48); }
+      64% { transform: scale(.52); opacity: 1; filter: blur(7px) brightness(1.7); }
+      100% { transform: scale(.05); opacity: 0; filter: blur(4px) brightness(1.15); }
+    }
+    @keyframes absorb-trail {
+      0%, 24% { opacity: 1; transform: rotate(var(--angle)) scaleX(1.45); }
+      70% { opacity: .8; transform: rotate(var(--angle)) scaleX(.42); }
+      100% { opacity: 0; transform: rotate(var(--angle)) scaleX(.05); }
+    }
+    @keyframes absorb-core {
+      0% { transform: translate(-50%, -50%) scale(.78); box-shadow: 0 0 28px rgb(8 129 60 / 72%); }
+      25% { transform: translate(-50%, -50%) scale(1.08); box-shadow: 0 0 38px rgb(10 151 69 / 84%); }
+      68% { transform: translate(-50%, -50%) scale(.42); box-shadow: 0 0 22px rgb(6 117 53 / 78%); }
+      100% { transform: translate(-50%, -50%) scale(.02); box-shadow: 0 0 0 rgb(0 0 0 / 0%); }
+    }
+    @media (min-width: 600px) {
+      .sink {
+        left: 46vw;
+        bottom: calc(env(safe-area-inset-bottom) + 48px);
+        width: 250px;
+        height: 240px;
+      }
     }
     .terminal {
       position: fixed;
@@ -237,10 +318,9 @@
 </head>
 <body>
   <div class="viewport" id="viewport">
+    <div class="sink" id="sink" aria-hidden="true"><span class="sink-core"></span></div>
     <main class="world" id="world" aria-label="Today spatial items"></main>
   </div>
-
-  <div class="sink" id="sink" aria-hidden="true"></div>
 
   <section class="terminal" aria-label="Today terminal">
     <div class="terminal-status"><span id="date"></span>
@@ -419,19 +499,30 @@
       const deltaX = cardX - pointer.sinkX;
       const deltaY = cardY - pointer.sinkY;
       const distance = Math.hypot(deltaX, deltaY);
-      const intensity = clamp(1 - (distance - 92) / 350, 0, 1);
+      const intensity = clamp(1 - (distance - 118) / 420, 0, 1);
       const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
-      pointer.inside = distance < 108;
+      pointer.inside = distance < 118;
       sink.style.setProperty("--intensity", intensity.toFixed(3));
       sink.style.setProperty("--angle", `${angle}deg`);
-      card.style.setProperty("--hold-scale", String(1.025 - intensity * .12));
+      sink.classList.toggle("magnetic", distance < 205);
+      sink.classList.toggle("engaged", pointer.inside);
+      card.style.setProperty("--hold-scale", String(pointer.inside ? .9 : 1.025 - intensity * .105));
       return distance;
+    }
+
+    function showSinkDiagnostic() {
+      sink.querySelector(".sink-center-dot")?.remove();
+      const dot = document.createElement("i");
+      dot.className = "sink-center-dot";
+      dot.setAttribute("aria-hidden", "true");
+      sink.append(dot);
     }
 
     function clearSink(card) {
       document.body.classList.remove("drag-active");
       sink.style.setProperty("--intensity", "0");
-      sink.classList.remove("absorbing");
+      sink.classList.remove("absorbing", "magnetic", "engaged");
+      sink.querySelector(".sink-center-dot")?.remove();
       if (card) card.style.removeProperty("--hold-scale");
     }
 
@@ -467,22 +558,26 @@
       const targetX = pointer.sinkX - pointer.viewportLeft + viewport.scrollLeft - card.offsetWidth / 2;
       const targetY = pointer.sinkY - pointer.viewportTop - card.offsetHeight / 2;
       card.style.pointerEvents = "none";
+      card.style.removeProperty("--hold-scale");
+      card.style.setProperty("--from-x", `${item.x}px`);
+      card.style.setProperty("--from-y", `${item.y}px`);
+      card.style.setProperty("--to-x", `${targetX}px`);
+      card.style.setProperty("--to-y", `${targetY}px`);
       card.classList.add("completing");
-      card.style.setProperty("--x", `${targetX}px`);
-      card.style.setProperty("--y", `${targetY}px`);
-      card.style.setProperty("--finish-scale", ".04");
-      card.style.setProperty("--finish-rotation", "8deg");
-      sink.classList.add("absorbing");
+      sink.style.setProperty("--intensity", "1");
+      sink.classList.add("absorbing", "engaged");
 
       setTimeout(() => {
         card.hidden = true;
         card.classList.remove("completing", "expanded");
         card.setAttribute("aria-expanded", "false");
         card.style.pointerEvents = "";
-        card.style.removeProperty("--finish-scale");
-        card.style.removeProperty("--finish-rotation");
+        card.style.removeProperty("--from-x");
+        card.style.removeProperty("--from-y");
+        card.style.removeProperty("--to-x");
+        card.style.removeProperty("--to-y");
         clearSink(card);
-      }, 460);
+      }, 530);
     }
 
     function settle(card, item, velocityX, velocityY) {
@@ -538,6 +633,7 @@
           sinkY: sinkCenter.y
         };
         document.body.classList.add("drag-active");
+        showSinkDiagnostic();
         updateSink(card, item, item.pointer);
       });
 
@@ -559,8 +655,10 @@
         const screenX = item.x - viewport.scrollLeft + pointer.viewportLeft + pointer.width / 2;
         const screenY = item.y + pointer.viewportTop + pointer.height / 2;
         const distance = Math.hypot(screenX - pointer.sinkX, screenY - pointer.sinkY);
-        if (distance < 185) {
-          const pull = Math.pow((185 - distance) / 185, 2) * .18;
+        if (distance < 210) {
+          const proximity = (210 - distance) / 210;
+          const thresholdBoost = distance < 120 ? (120 - distance) / 120 * .18 : 0;
+          const pull = .04 + proximity * proximity * .26 + thresholdBoost;
           const sinkWorldX = pointer.sinkX - pointer.viewportLeft + viewport.scrollLeft - pointer.width / 2;
           const sinkWorldY = pointer.sinkY - pointer.viewportTop - pointer.height / 2;
           item.x = rawX + (sinkWorldX - rawX) * pull;
@@ -656,8 +754,10 @@
         card.classList.remove("expanded", "completing");
         card.setAttribute("aria-expanded", "false");
         card.style.pointerEvents = "";
-        card.style.removeProperty("--finish-scale");
-        card.style.removeProperty("--finish-rotation");
+        card.style.removeProperty("--from-x");
+        card.style.removeProperty("--from-y");
+        card.style.removeProperty("--to-x");
+        card.style.removeProperty("--to-y");
         card.style.zIndex = index + 1;
         Object.assign(item, defaultPosition(data, card), { custom: false });
         card.classList.add("command-moving");
