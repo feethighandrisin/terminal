@@ -199,54 +199,28 @@
       content: "";
       position: absolute;
       left: 50%;
-      top: 48%;
-      width: 160px;
-      height: 42px;
+      top: calc(50% - 38px);
+      width: 380px;
+      height: 76px;
       border-radius: 50%;
-      background: linear-gradient(90deg, rgb(12 146 69 / 82%), rgb(4 69 34 / 44%) 55%, rgb(0 10 5 / 0%));
-      filter: blur(11px);
-      opacity: calc(.16 + var(--intensity) * .84);
-      transform: rotate(var(--angle)) scaleX(calc(.48 + var(--intensity) * 1.28));
+      background: linear-gradient(90deg,
+        rgb(9 137 63 / 72%),
+        rgb(5 104 49 / 52%) 32%,
+        rgb(3 65 31 / 32%) 64%,
+        rgb(0 10 5 / 0%) 100%);
+      filter: blur(18px);
+      opacity: calc(.2 + var(--intensity) * .8);
+      transform: rotate(var(--angle)) scaleX(calc(.62 + var(--intensity) * 1.12));
       transform-origin: left center;
-    }
-    .sink-core {
-      position: absolute;
-      z-index: 1;
-      left: 50%;
-      top: 50%;
-      width: 46px;
-      height: 46px;
-      border-radius: 50%;
-      background: #000;
-      box-shadow: 0 0 0 1px rgb(15 128 61 / 68%), 0 0 28px rgb(7 109 52 / 55%);
-      transform: translate(-50%, -50%) scale(calc(1.04 - var(--intensity) * .16));
-      transition: transform 90ms linear, box-shadow 90ms linear;
     }
     .sink.magnetic::before { filter: blur(8px) brightness(1.35) drop-shadow(0 0 24px rgb(7 119 56 / 62%)); }
     .sink.engaged::before {
       filter: blur(7px) brightness(1.65) drop-shadow(0 0 30px rgb(9 148 68 / 78%));
       transform: scale(.97);
     }
-    .sink.engaged .sink-core {
-      box-shadow: 0 0 0 1px rgb(26 179 84 / 92%), 0 0 40px rgb(10 153 70 / 82%);
-      transform: translate(-50%, -50%) scale(.78);
-    }
-    .sink-center-dot {
-      position: absolute;
-      z-index: 3;
-      left: 50%;
-      top: 50%;
-      width: 2px;
-      height: 2px;
-      border-radius: 50%;
-      background: #36b86e;
-      box-shadow: 0 0 3px #27945a;
-      transform: translate(-50%, -50%);
-    }
     .sink.absorbing { opacity: 1; }
     .sink.absorbing::before { animation: absorb 520ms cubic-bezier(.45,0,.18,1) forwards; }
     .sink.absorbing::after { animation: absorb-trail 520ms cubic-bezier(.45,0,.18,1) forwards; }
-    .sink.absorbing .sink-core { animation: absorb-core 520ms cubic-bezier(.45,0,.18,1) forwards; }
     @keyframes absorb {
       0% { transform: scale(.97); opacity: 1; filter: blur(7px) brightness(1.45) drop-shadow(0 0 24px rgb(8 132 62 / 72%)); }
       22% { transform: scale(1.18); opacity: 1; filter: blur(7px) brightness(1.9) drop-shadow(0 0 38px rgb(12 175 80 / 88%)); }
@@ -259,18 +233,17 @@
       70% { opacity: .9; transform: rotate(var(--angle)) scaleX(.48); }
       100% { opacity: 0; transform: rotate(var(--angle)) scaleX(.05); }
     }
-    @keyframes absorb-core {
-      0% { transform: translate(-50%, -50%) scale(.78); box-shadow: 0 0 34px rgb(10 160 73 / 84%); }
-      25% { transform: translate(-50%, -50%) scale(1.12); box-shadow: 0 0 54px rgb(14 207 92 / 96%); }
-      68% { transform: translate(-50%, -50%) scale(.38); box-shadow: 0 0 34px rgb(9 177 78 / 92%); }
-      100% { transform: translate(-50%, -50%) scale(.02); box-shadow: 0 0 0 rgb(0 0 0 / 0%); }
-    }
     @media (min-width: 600px) {
       .sink {
         left: 46vw;
         bottom: calc(env(safe-area-inset-bottom) + 48px);
         width: 250px;
         height: 240px;
+      }
+      .sink::after {
+        top: calc(50% - 52px);
+        width: 560px;
+        height: 104px;
       }
     }
     .terminal {
@@ -319,7 +292,7 @@
 </head>
 <body>
   <div class="viewport" id="viewport">
-    <div class="sink" id="sink" aria-hidden="true"><span class="sink-core"></span></div>
+    <div class="sink" id="sink" aria-hidden="true"></div>
     <main class="world" id="world" aria-label="Today spatial items"></main>
   </div>
 
@@ -511,19 +484,10 @@
       return distance;
     }
 
-    function showSinkDiagnostic() {
-      sink.querySelector(".sink-center-dot")?.remove();
-      const dot = document.createElement("i");
-      dot.className = "sink-center-dot";
-      dot.setAttribute("aria-hidden", "true");
-      sink.append(dot);
-    }
-
     function clearSink(card) {
       document.body.classList.remove("drag-active");
       sink.style.setProperty("--intensity", "0");
       sink.classList.remove("absorbing", "magnetic", "engaged");
-      sink.querySelector(".sink-center-dot")?.remove();
       if (card) card.style.removeProperty("--hold-scale");
     }
 
@@ -634,7 +598,6 @@
           sinkY: sinkCenter.y
         };
         document.body.classList.add("drag-active");
-        showSinkDiagnostic();
         updateSink(card, item, item.pointer);
       });
 
