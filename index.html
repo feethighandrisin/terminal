@@ -40,9 +40,10 @@
     .viewport.panning { cursor: grabbing; }
     .world {
       position: relative;
-      z-index: 1;
+      z-index: 2;
       min-width: 100%;
       height: 100%;
+      pointer-events: none;
     }
     .card {
       --x: 0px;
@@ -62,6 +63,7 @@
       -webkit-user-select: none;
       cursor: grab;
       will-change: transform;
+      pointer-events: auto;
     }
     .card[hidden] { display: none; }
     .card:focus { outline: none; }
@@ -228,6 +230,113 @@
         inset: -78px -170px;
       }
     }
+    .thumb-keyboard {
+      position: fixed;
+      z-index: 1;
+      left: env(safe-area-inset-left);
+      right: env(safe-area-inset-right);
+      bottom: calc(env(safe-area-inset-bottom) + 124px);
+      height: clamp(210px, 32vh, 300px);
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-select: none;
+      opacity: 0;
+      animation: keyboard-reveal 1.5s ease 2s forwards;
+    }
+    .thumb-key {
+      position: absolute;
+      left: var(--key-x);
+      top: var(--key-y);
+      display: grid;
+      width: 48px;
+      height: 48px;
+      margin: 0;
+      padding: 0;
+      place-items: center;
+      border: 0;
+      outline: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: rgb(139 139 139 / 9%);
+      font: 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      transform: translate(-50%, -50%) scale(1);
+      transform-origin: center;
+      transition: color 180ms ease, transform 130ms cubic-bezier(.2,.75,.25,1);
+      touch-action: none;
+      pointer-events: auto;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .thumb-key::before {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      z-index: -1;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgb(205 205 198 / 21%) 0%, rgb(151 151 145 / 8%) 42%, transparent 72%);
+      opacity: 0;
+      transform: scale(.58);
+    }
+    body.keyboard-active .thumb-key {
+      color: rgb(146 146 146 / 20%);
+    }
+    .thumb-key.pressed {
+      color: rgb(210 210 204 / 72%);
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+    .thumb-key.pressed::before {
+      opacity: 1;
+      transform: scale(1.08);
+    }
+    .thumb-key.afterglow {
+      animation: key-letter-afterglow 360ms ease-out forwards;
+    }
+    .thumb-key.afterglow::before {
+      animation: key-afterglow 360ms ease-out forwards;
+    }
+    .thumb-key.control {
+      color: rgb(139 139 139 / 11%);
+      font-size: 11px;
+    }
+    body.keyboard-active .thumb-key.control {
+      color: rgb(151 151 151 / 22%);
+    }
+    .thumb-key.space {
+      width: 112px;
+      border-radius: 50%;
+    }
+    .thumb-key.space span {
+      width: 18px;
+      height: 1px;
+      background: currentColor;
+    }
+    @keyframes key-afterglow {
+      0% { opacity: .58; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.5); }
+    }
+    @keyframes key-letter-afterglow {
+      0% { color: rgb(198 198 192 / 48%); }
+      100% { color: rgb(146 146 146 / 20%); }
+    }
+    @keyframes keyboard-reveal {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @media (min-width: 600px) {
+      .thumb-keyboard {
+        bottom: calc(env(safe-area-inset-bottom) + 112px);
+      }
+      .thumb-key {
+        width: 54px;
+        height: 54px;
+      }
+      .thumb-key.space { width: 132px; }
+    }
+    @media (max-height: 520px) {
+      .thumb-keyboard {
+        bottom: calc(env(safe-area-inset-bottom) + 135px);
+        height: 190px;
+      }
+    }
     .terminal {
       position: fixed;
       z-index: 4;
@@ -247,24 +356,18 @@
       pointer-events: auto;
     }
     .command { cursor: text; }
+    .command:focus { outline: none; }
     .command[hidden],
     .response[hidden] { display: none; }
-    .command input {
-      width: 1ch;
-      min-width: 1ch;
-      margin: 0;
-      padding: 0;
-      border: 0;
-      outline: 0;
-      border-radius: 0;
-      background: transparent;
-      color: #858585;
-      caret-color: transparent;
-      font: inherit;
+    .command-input {
+      max-width: calc(100vw - 72px);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
     }
     .cursor { animation: blink 1.2s steps(1, end) infinite; }
     @keyframes blink { 50% { opacity: 0; } }
     @media (prefers-reduced-motion: reduce) {
+      .thumb-keyboard { opacity: 1; animation: none; }
       .cursor { animation: none; }
       .detail,
       .card-inner,
@@ -275,6 +378,7 @@
 <body>
   <div class="viewport" id="viewport">
     <div class="sink" id="sink" aria-hidden="true"></div>
+    <section class="thumb-keyboard" id="thumb-keyboard" aria-label="Custom thumb keyboard"></section>
     <main class="world" id="world" aria-label="Today spatial items"></main>
   </div>
 
@@ -282,9 +386,9 @@
     <div class="terminal-status"><span id="date"></span>
 <span id="time"></span>
 <span id="count"></span></div>
-    <form class="command" id="command-form" autocomplete="off">
-      <span>&gt;&nbsp;</span><input id="command-input" aria-label="Command" enterkeyhint="send" autocapitalize="none" autocomplete="off" spellcheck="false"><span class="cursor">█</span>
-    </form>
+    <div class="command" id="command-form" role="button" tabindex="0" aria-label="Activate command input">
+      <span>&gt;&nbsp;</span><span class="command-input" id="command-input"></span><span class="cursor">█</span>
+    </div>
     <div class="response" id="response" aria-live="polite" hidden></div>
   </section>
 
@@ -303,6 +407,7 @@
     const viewport = document.querySelector("#viewport");
     const world = document.querySelector("#world");
     const sink = document.querySelector("#sink");
+    const keyboard = document.querySelector("#thumb-keyboard");
     const dateLabel = document.querySelector("#date");
     const timeLabel = document.querySelector("#time");
     const countLabel = document.querySelector("#count");
@@ -320,6 +425,21 @@
     let panFrame;
     let lastViewportWidth = 0;
     let lastViewportHeight = 0;
+    let commandValue = "";
+    const keyTimers = new WeakMap();
+
+    const keyboardLayout = [
+      ["q", 7, 70], ["a", 7, 82], ["z", 7, 94],
+      ["w", 17, 54], ["s", 17, 70], ["x", 17, 86],
+      ["e", 27, 38], ["d", 27, 56], ["c", 27, 74],
+      ["r", 37, 22], ["f", 37, 42], ["v", 37, 62],
+      ["t", 45, 8], ["g", 45, 30], ["b", 45, 52],
+      ["y", 55, 8], ["h", 55, 30], ["n", 55, 52],
+      ["u", 63, 22], ["j", 63, 42], ["m", 63, 62],
+      ["i", 73, 38], ["k", 73, 56],
+      ["o", 83, 54], ["l", 83, 70], ["p", 93, 70],
+      ["space", 50, 84], ["backspace", 92, 90], ["enter", 73, 90]
+    ];
 
     const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
 
@@ -480,6 +600,7 @@
 
     function showResponse(message, duration = 1800) {
       clearTimeout(responseTimer);
+      setKeyboardActive(false);
       response.textContent = message;
       commandForm.hidden = true;
       response.hidden = false;
@@ -740,27 +861,114 @@
       }
     }
 
-    commandInput.addEventListener("input", () => {
-      commandInput.style.width = `${Math.max(1, commandInput.value.length)}ch`;
-    });
+    function renderCommand() {
+      commandInput.textContent = commandValue;
+    }
+
+    function setKeyboardActive(active) {
+      document.body.classList.toggle("keyboard-active", active);
+      commandForm.setAttribute("aria-pressed", String(active));
+    }
+
+    function activateKeyboard() {
+      setKeyboardActive(true);
+      commandForm.focus({ preventScroll: true });
+    }
+
     function submitCommand() {
-      const value = commandInput.value;
-      commandInput.value = "";
-      commandInput.style.width = "1ch";
+      const value = commandValue;
+      commandValue = "";
+      renderCommand();
+      setKeyboardActive(false);
       runCommand(value);
     }
-    commandInput.addEventListener("keydown", event => {
-      if (event.key !== "Enter") return;
-      event.preventDefault();
-      submitCommand();
-    });
-    commandForm.addEventListener("submit", event => {
-      event.preventDefault();
-      submitCommand();
-    });
+
+    function applyKey(value) {
+      if (value === "enter") {
+        submitCommand();
+      } else if (value === "backspace") {
+        commandValue = Array.from(commandValue).slice(0, -1).join("");
+        renderCommand();
+      } else if (value === "space") {
+        if (commandValue.length < 72 && commandValue && !commandValue.endsWith(" ")) commandValue += " ";
+        renderCommand();
+      } else if (commandValue.length < 72) {
+        commandValue += value;
+        renderCommand();
+      }
+    }
+
+    function releaseKey(key) {
+      if (!key.classList.contains("pressed")) return;
+      key.classList.remove("pressed", "afterglow");
+      void key.offsetWidth;
+      key.classList.add("afterglow");
+      clearTimeout(keyTimers.get(key));
+      keyTimers.set(key, setTimeout(() => key.classList.remove("afterglow"), 370));
+    }
+
+    function renderKeyboard() {
+      const fragment = document.createDocumentFragment();
+      keyboardLayout.forEach(([value, x, y]) => {
+        const key = document.createElement("button");
+        const control = value.length > 1;
+        key.type = "button";
+        key.tabIndex = -1;
+        key.className = `thumb-key${control ? " control" : ""}${value === "space" ? " space" : ""}`;
+        key.dataset.key = value;
+        key.style.setProperty("--key-x", `${x}%`);
+        key.style.setProperty("--key-y", `${y}%`);
+        key.setAttribute("aria-label", value === "space" ? "Space" : value === "backspace" ? "Backspace" : value === "enter" ? "Enter" : value.toUpperCase());
+        key.innerHTML = value === "space" ? "<span aria-hidden=\"true\"></span>" : value === "backspace" ? "⌫" : value === "enter" ? "↵" : value.toUpperCase();
+        key.addEventListener("pointerdown", event => {
+          if (document.body.classList.contains("drag-active")) return;
+          event.preventDefault();
+          event.stopPropagation();
+          activateKeyboard();
+          clearTimeout(keyTimers.get(key));
+          key.classList.remove("afterglow");
+          key.classList.add("pressed");
+          key.setPointerCapture(event.pointerId);
+          applyKey(value);
+        });
+        ["pointerup", "pointercancel", "lostpointercapture"].forEach(type => {
+          key.addEventListener(type, event => {
+            event.preventDefault();
+            event.stopPropagation();
+            releaseKey(key);
+          });
+        });
+        key.addEventListener("click", event => event.preventDefault());
+        fragment.append(key);
+      });
+      keyboard.append(fragment);
+    }
+
+    function flashPhysicalKey(value) {
+      const key = keyboard.querySelector(`[data-key="${value}"]`);
+      if (!key) return;
+      clearTimeout(keyTimers.get(key));
+      key.classList.remove("afterglow");
+      key.classList.add("pressed");
+      setTimeout(() => releaseKey(key), 70);
+    }
+
     commandForm.addEventListener("pointerdown", event => {
+      event.preventDefault();
       event.stopPropagation();
-      commandInput.focus();
+      activateKeyboard();
+    });
+    commandForm.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") event.preventDefault();
+    });
+    addEventListener("keydown", event => {
+      if (!document.body.classList.contains("keyboard-active") || event.ctrlKey || event.metaKey || event.altKey) return;
+      const key = event.key.toLowerCase();
+      const value = /^[a-z]$/.test(key) ? key : key === " " ? "space" : key === "backspace" ? "backspace" : key === "enter" ? "enter" : "";
+      if (!value) return;
+      event.preventDefault();
+      flashPhysicalKey(value);
+      applyKey(value);
     });
 
     viewport.addEventListener("wheel", event => {
@@ -772,6 +980,7 @@
 
     let backgroundPan = null;
     viewport.addEventListener("pointerdown", event => {
+      if (!event.target.closest(".card")) setKeyboardActive(false);
       if (event.pointerType !== "mouse" || event.button !== 0 || event.target.closest(".card")) return;
       cancelAnimationFrame(panFrame);
       backgroundPan = { id: event.pointerId, x: event.clientX, scroll: viewport.scrollLeft, lastX: event.clientX, lastTime: event.timeStamp, velocity: 0 };
@@ -835,6 +1044,7 @@
     });
 
     renderCards();
+    renderKeyboard();
     initializePositions();
     for (const card of cards.values()) attachCardInteractions(card);
     updateTerminal();
