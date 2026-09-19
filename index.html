@@ -269,7 +269,7 @@
       z-index: 1;
       left: env(safe-area-inset-left);
       right: env(safe-area-inset-right);
-      bottom: calc(env(safe-area-inset-bottom) + 190px);
+      bottom: calc(env(safe-area-inset-bottom) + 165px);
       height: clamp(220px, 28vh, 250px);
       pointer-events: none;
       user-select: none;
@@ -332,6 +332,7 @@
       animation: key-afterglow 1080ms ease-out forwards;
     }
     .thumb-key.control {
+      width: 36px;
       color: rgb(139 139 139 / 11%);
       font-size: 12px;
     }
@@ -339,13 +340,7 @@
       color: rgb(151 151 151 / 22%);
     }
     .thumb-key.space {
-      border-radius: 50%;
-    }
-    .thumb-key.space-left {
-      width: 84px;
-    }
-    .thumb-key.space-right {
-      width: 64px;
+      width: 160px;
       border-radius: 50%;
     }
     .thumb-key.space span {
@@ -369,20 +364,19 @@
       .thumb-keyboard {
         left: 20%;
         right: 20%;
-        bottom: calc(env(safe-area-inset-bottom) + 180px);
+        bottom: calc(env(safe-area-inset-bottom) + 155px);
       }
       .thumb-key {
         width: 44px;
         height: 50px;
         font-size: 12px;
       }
-      .thumb-key.control { font-size: 13px; }
-      .thumb-key.space-left { width: 96px; }
-      .thumb-key.space-right { width: 72px; }
+      .thumb-key.control { width: 44px; font-size: 13px; }
+      .thumb-key.space { width: 190px; }
     }
     @media (max-height: 520px) {
       .thumb-keyboard {
-        bottom: calc(env(safe-area-inset-bottom) + 165px);
+        bottom: calc(env(safe-area-inset-bottom) + 140px);
         height: 190px;
       }
     }
@@ -463,7 +457,7 @@
     const commandForm = document.querySelector("#command-form");
     const commandInput = document.querySelector("#command-input");
     const response = document.querySelector("#response");
-    const buildVersion = "terminal-013";
+    const buildVersion = "terminal-014";
     const storageKey = "today-os-state-v2";
     const cards = new Map();
     const state = new Map();
@@ -484,8 +478,8 @@
       ["z", 8, 56], ["x", 16.75, 56], ["c", 25.5, 56], ["v", 34.25, 56], ["b", 43, 56],
       ["y", 60, 8], ["u", 68.625, 8], ["i", 77.25, 8], ["o", 85.875, 8], ["p", 94.5, 8],
       ["h", 58.5, 32], ["j", 70.25, 32], ["k", 82, 32], ["l", 93.75, 32],
-      ["n", 61, 56], ["m", 73, 56], ["backspace", 88, 56],
-      ["space-left", 23, 96], ["space-right", 70, 96], ["enter", 93, 78]
+      ["n", 61, 56], ["m", 73, 56], ["backspace", 84, 56], ["enter", 94, 56],
+      ["space", 50, 82]
     ];
 
     const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
@@ -1005,7 +999,7 @@
     }
 
     function flashPhysicalKey(value) {
-      const key = keyboard.querySelector(`[data-key="${value === "space" ? "space-right" : value}"]`);
+      const key = keyboard.querySelector(`[data-key="${value}"]`);
       if (!key) return;
       clearTimeout(keyTimers.get(key));
       key.classList.remove("afterglow");
