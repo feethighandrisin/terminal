@@ -235,8 +235,8 @@
       z-index: 1;
       left: env(safe-area-inset-left);
       right: env(safe-area-inset-right);
-      bottom: calc(env(safe-area-inset-bottom) + 124px);
-      height: clamp(210px, 32vh, 300px);
+      bottom: calc(env(safe-area-inset-bottom) + 190px);
+      height: clamp(220px, 28vh, 250px);
       pointer-events: none;
       user-select: none;
       -webkit-user-select: none;
@@ -305,7 +305,13 @@
       color: rgb(151 151 151 / 22%);
     }
     .thumb-key.space {
-      width: 112px;
+      border-radius: 50%;
+    }
+    .thumb-key.space-left {
+      width: 84px;
+    }
+    .thumb-key.space-right {
+      width: 64px;
       border-radius: 50%;
     }
     .thumb-key.space span {
@@ -329,7 +335,7 @@
       .thumb-keyboard {
         left: 20%;
         right: 20%;
-        bottom: calc(env(safe-area-inset-bottom) + 112px);
+        bottom: calc(env(safe-area-inset-bottom) + 180px);
       }
       .thumb-key {
         width: 54px;
@@ -337,11 +343,12 @@
         font-size: 12px;
       }
       .thumb-key.control { font-size: 13px; }
-      .thumb-key.space { width: 132px; }
+      .thumb-key.space-left { width: 96px; }
+      .thumb-key.space-right { width: 72px; }
     }
     @media (max-height: 520px) {
       .thumb-keyboard {
-        bottom: calc(env(safe-area-inset-bottom) + 135px);
+        bottom: calc(env(safe-area-inset-bottom) + 165px);
         height: 190px;
       }
     }
@@ -422,7 +429,7 @@
     const commandForm = document.querySelector("#command-form");
     const commandInput = document.querySelector("#command-input");
     const response = document.querySelector("#response");
-    const buildVersion = "terminal-009";
+    const buildVersion = "terminal-010";
     const storageKey = "today-os-state-v2";
     const cards = new Map();
     const state = new Map();
@@ -438,16 +445,14 @@
     const keyTimers = new WeakMap();
 
     const keyboardLayout = [
-      ["q", 7, 70], ["a", 7, 82], ["z", 7, 94],
-      ["w", 17, 54], ["s", 17, 70], ["x", 17, 86],
-      ["e", 27, 38], ["d", 27, 56], ["c", 27, 74],
-      ["r", 37, 22], ["f", 37, 42], ["v", 37, 62],
-      ["t", 45, 8], ["g", 45, 30], ["b", 45, 52],
-      ["y", 55, 8], ["h", 55, 30], ["n", 55, 52],
-      ["u", 63, 22], ["j", 63, 42], ["m", 63, 62],
-      ["i", 73, 38], ["k", 73, 56],
-      ["o", 83, 54], ["l", 83, 70], ["p", 93, 70],
-      ["space", 50, 84], ["backspace", 92, 90], ["enter", 73, 90]
+      ["q", 7, 10], ["w", 19, 7], ["e", 31, 7], ["r", 43, 10],
+      ["t", 7, 31], ["a", 19, 28], ["s", 31, 28], ["d", 43, 31],
+      ["f", 7, 52], ["g", 19, 49], ["z", 31, 49], ["x", 43, 52],
+      ["c", 13, 72], ["v", 25, 69], ["b", 37, 72],
+      ["y", 57, 10], ["u", 69, 7], ["i", 81, 7], ["o", 93, 10],
+      ["p", 57, 31], ["h", 69, 28], ["j", 81, 28], ["k", 93, 31],
+      ["l", 63, 52], ["n", 75, 49], ["m", 87, 52],
+      ["space-left", 25, 96], ["space-right", 69, 96], ["backspace", 85, 96], ["enter", 93, 74]
     ];
 
     const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
@@ -901,7 +906,7 @@
       } else if (value === "backspace") {
         commandValue = Array.from(commandValue).slice(0, -1).join("");
         renderCommand();
-      } else if (value === "space") {
+      } else if (value.startsWith("space")) {
         if (commandValue.length < 72 && commandValue && !commandValue.endsWith(" ")) commandValue += " ";
         renderCommand();
       } else if (commandValue.length < 72) {
@@ -926,12 +931,13 @@
         const control = value.length > 1;
         key.type = "button";
         key.tabIndex = -1;
-        key.className = `thumb-key${control ? " control" : ""}${value === "space" ? " space" : ""}`;
+        const space = value.startsWith("space");
+        key.className = `thumb-key${control ? " control" : ""}${space ? ` space ${value}` : ""}`;
         key.dataset.key = value;
         key.style.setProperty("--key-x", `${x}%`);
         key.style.setProperty("--key-y", `${y}%`);
-        key.setAttribute("aria-label", value === "space" ? "Space" : value === "backspace" ? "Backspace" : value === "enter" ? "Enter" : value.toUpperCase());
-        key.innerHTML = value === "space" ? "<span aria-hidden=\"true\"></span>" : value === "backspace" ? "⌫" : value === "enter" ? "↵" : value.toUpperCase();
+        key.setAttribute("aria-label", space ? "Space" : value === "backspace" ? "Backspace" : value === "enter" ? "Enter" : value.toUpperCase());
+        key.innerHTML = space ? "<span aria-hidden=\"true\"></span>" : value === "backspace" ? "⌫" : value === "enter" ? "↵" : value.toUpperCase();
         key.addEventListener("pointerdown", event => {
           if (document.body.classList.contains("drag-active")) return;
           event.preventDefault();
@@ -957,7 +963,7 @@
     }
 
     function flashPhysicalKey(value) {
-      const key = keyboard.querySelector(`[data-key="${value}"]`);
+      const key = keyboard.querySelector(`[data-key="${value === "space" ? "space-right" : value}"]`);
       if (!key) return;
       clearTimeout(keyTimers.get(key));
       key.classList.remove("afterglow");
