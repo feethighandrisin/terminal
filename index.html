@@ -90,6 +90,7 @@
     .card:focus { outline: none; }
     .card:focus-visible .card-inner { outline: 1px solid #303030; outline-offset: 2px; }
     .card-gyro {
+      position: relative;
       width: 100%;
       min-height: var(--h);
       transform: translate3d(
@@ -101,7 +102,27 @@
       transform-style: preserve-3d;
       will-change: transform;
     }
+    .card-gyro::before {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      inset: -18px -12px -18px -24px;
+      border-radius: calc(var(--radius, 21px) + 14px);
+      background: linear-gradient(90deg,
+        rgb(8 154 71 / 74%) 0%,
+        rgb(6 119 55 / 46%) 28%,
+        rgb(4 74 35 / 18%) 54%,
+        rgb(2 31 15 / 0%) 82%);
+      opacity: calc(var(--sink-glow) * .86);
+      filter: blur(22px);
+      transform: translate3d(-7px, 0, -1px) scaleX(.98);
+      transform-origin: left center;
+      transition: opacity 90ms linear, filter 90ms linear, transform 90ms linear;
+      pointer-events: none;
+    }
     .card-inner {
+      position: relative;
+      z-index: 1;
       width: 100%;
       min-height: var(--h);
       padding: 16px;
@@ -116,16 +137,17 @@
     }
     .card.dragging { cursor: grabbing; }
     .card.dragging .card-inner {
-      box-shadow:
-        0 15px 38px rgb(0 0 0 / 48%),
-        0 0 calc(14px + var(--sink-glow) * 28px) rgb(7 134 62 / calc(var(--sink-glow) * 42%)),
-        0 0 calc(30px + var(--sink-glow) * 48px) rgb(4 91 43 / calc(var(--sink-glow) * 24%));
+      box-shadow: 0 15px 38px rgb(0 0 0 / 48%);
     }
     .card.dragging.sink-engaged .card-inner,
     .card.completing .card-inner {
-      box-shadow:
-        0 0 34px rgb(12 166 77 / 54%),
-        0 0 76px rgb(6 112 52 / 38%);
+      box-shadow: 0 16px 42px rgb(0 0 0 / 52%);
+    }
+    .card.dragging.sink-engaged .card-gyro::before,
+    .card.completing .card-gyro::before {
+      opacity: .96;
+      filter: blur(27px) brightness(1.28);
+      transform: translate3d(-11px, 0, -1px) scaleX(1.06);
     }
     .card.command-moving {
       transition: transform 420ms cubic-bezier(.22,.8,.28,1);
@@ -255,37 +277,33 @@
       top: 0;
       width: var(--field-width);
       height: 100%;
-      background: linear-gradient(90deg,
-        rgb(7 119 56 / 62%) 0%,
-        rgb(5 91 43 / 44%) 19%,
-        rgb(4 70 33 / 29%) 42%,
-        rgb(3 48 23 / 17%) 66%,
-        rgb(1 18 8 / 0%) 100%);
-      clip-path: polygon(
-        0 0,
-        24% 0,
-        32% calc(var(--focus-y) - 24%),
-        100% var(--focus-y),
-        32% calc(var(--focus-y) + 24%),
-        24% 100%,
-        0 100%
-      );
-      filter: blur(20px) drop-shadow(0 0 22px rgb(6 103 48 / 34%));
+      background:
+        radial-gradient(ellipse 105% 34% at 0 var(--focus-y),
+          rgb(8 132 61 / 68%) 0%,
+          rgb(6 103 48 / 38%) 31%,
+          rgb(4 67 32 / 15%) 56%,
+          rgb(2 28 13 / 0%) 78%),
+        linear-gradient(90deg,
+          rgb(7 119 56 / 52%) 0%,
+          rgb(5 91 43 / 24%) 29%,
+          rgb(3 51 25 / 8%) 58%,
+          rgb(1 18 8 / 0%) 100%);
+      filter: blur(48px) drop-shadow(0 0 38px rgb(6 103 48 / 28%));
       transform: translate3d(var(--gyro-sink-x), var(--gyro-sink-y), 0) skewY(var(--gyro-sink-skew));
       transform-origin: left center;
       transition: width 85ms linear, filter 85ms linear;
     }
-    .sink.magnetic::before { filter: blur(18px) brightness(1.3) drop-shadow(0 0 30px rgb(7 119 56 / 48%)); }
+    .sink.magnetic::before { filter: blur(44px) brightness(1.34) drop-shadow(0 0 46px rgb(7 119 56 / 42%)); }
     .sink.engaged::before {
-      filter: blur(16px) brightness(1.68) drop-shadow(0 0 40px rgb(9 148 68 / 64%));
+      filter: blur(40px) brightness(1.72) drop-shadow(0 0 58px rgb(9 148 68 / 58%));
     }
     .sink.absorbing { opacity: 1; }
     .sink.absorbing::before { animation: absorb 520ms cubic-bezier(.45,0,.18,1) forwards; }
     @keyframes absorb {
-      0% { transform: scaleX(1); opacity: 1; filter: blur(16px) brightness(1.45) drop-shadow(0 0 30px rgb(8 132 62 / 58%)); }
-      22% { transform: scaleX(1.08); opacity: 1; filter: blur(15px) brightness(1.95) drop-shadow(0 0 44px rgb(12 175 80 / 74%)); }
-      58% { transform: scaleX(.52); opacity: 1; filter: blur(13px) brightness(2.1) drop-shadow(0 0 34px rgb(10 164 75 / 76%)); }
-      80% { transform: scaleX(.14); opacity: .9; filter: blur(9px) brightness(2.35) drop-shadow(0 0 24px rgb(8 147 67 / 72%)); }
+      0% { transform: scaleX(1); opacity: 1; filter: blur(40px) brightness(1.45) drop-shadow(0 0 42px rgb(8 132 62 / 52%)); }
+      22% { transform: scaleX(1.08); opacity: 1; filter: blur(38px) brightness(1.95) drop-shadow(0 0 60px rgb(12 175 80 / 68%)); }
+      58% { transform: scaleX(.52); opacity: 1; filter: blur(34px) brightness(2.1) drop-shadow(0 0 50px rgb(10 164 75 / 70%)); }
+      80% { transform: scaleX(.14); opacity: .9; filter: blur(26px) brightness(2.35) drop-shadow(0 0 36px rgb(8 147 67 / 66%)); }
       100% { transform: scaleX(.01); opacity: 0; filter: blur(3px) brightness(1.2) drop-shadow(0 0 0 rgb(0 0 0 / 0%)); }
     }
     @media (min-width: 600px) {
@@ -491,7 +509,7 @@
     const commandForm = document.querySelector("#command-form");
     const commandInput = document.querySelector("#command-input");
     const response = document.querySelector("#response");
-    const buildVersion = "terminal-016";
+    const buildVersion = "terminal-017";
     const storageKey = "today-os-state-v2";
     const cards = new Map();
     const state = new Map();
