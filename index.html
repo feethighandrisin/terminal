@@ -390,6 +390,20 @@
     body.keyboard-active .thumb-key.control {
       color: rgb(151 151 151 / 22%);
     }
+    .thumb-key.enter {
+      color: rgb(176 176 170 / 30%);
+      font-size: 15px;
+      font-weight: 600;
+      text-shadow: 0 0 9px rgb(190 190 184 / 16%);
+    }
+    body.keyboard-active .thumb-key.enter {
+      color: rgb(196 196 190 / 58%);
+      text-shadow: 0 0 11px rgb(210 210 204 / 24%);
+    }
+    .thumb-key.control.pressed,
+    body.keyboard-active .thumb-key.control.pressed {
+      color: rgb(220 220 214 / 78%);
+    }
     .thumb-key.space {
       width: 160px;
       border-radius: 50%;
@@ -423,6 +437,7 @@
         font-size: 12px;
       }
       .thumb-key.control { width: 44px; font-size: 13px; }
+      .thumb-key.enter { font-size: 16px; }
       .thumb-key.space { width: 190px; }
     }
     @media (max-height: 520px) {
@@ -509,7 +524,7 @@
     const commandForm = document.querySelector("#command-form");
     const commandInput = document.querySelector("#command-input");
     const response = document.querySelector("#response");
-    const buildVersion = "terminal-017";
+    const buildVersion = "terminal-018";
     const storageKey = "today-os-state-v2";
     const cards = new Map();
     const state = new Map();
@@ -538,12 +553,12 @@
     };
 
     const keyboardLayout = [
-      ["q", 5.5, 8], ["w", 14.125, 8], ["e", 22.75, 8], ["r", 31.375, 8], ["t", 40, 8],
-      ["a", 6.5, 32], ["s", 15.25, 32], ["d", 24, 32], ["f", 32.75, 32], ["g", 41.5, 32],
-      ["z", 8, 56], ["x", 16.75, 56], ["c", 25.5, 56], ["v", 34.25, 56], ["b", 43, 56],
-      ["y", 60, 8], ["u", 68.625, 8], ["i", 77.25, 8], ["o", 85.875, 8], ["p", 94.5, 8],
-      ["h", 58.5, 32], ["j", 70.25, 32], ["k", 82, 32], ["l", 93.75, 32],
-      ["n", 61, 56], ["m", 73, 56], ["backspace", 84, 56], ["enter", 94, 56],
+      ["q", 6, 8], ["w", 14, 8], ["e", 22, 8], ["r", 30, 8], ["t", 38, 8],
+      ["a", 5.5, 32], ["s", 13.25, 32], ["d", 21, 32], ["f", 28.75, 32], ["g", 36.5, 32],
+      ["z", 5.5, 56], ["x", 12.875, 56], ["c", 20.25, 56], ["v", 27.625, 56], ["b", 35, 56],
+      ["y", 62, 8], ["u", 70, 8], ["i", 78, 8], ["o", 86, 8], ["p", 94, 8],
+      ["h", 63.5, 32], ["j", 73.833, 32], ["k", 84.167, 32], ["l", 94.5, 32],
+      ["n", 65, 56], ["m", 75, 56], ["backspace", 85, 56], ["enter", 94.5, 56],
       ["space", 50, 82]
     ];
 
@@ -1172,11 +1187,13 @@
         key.type = "button";
         key.tabIndex = -1;
         const space = value.startsWith("space");
-        key.className = `thumb-key${control ? " control" : ""}${space ? ` space ${value}` : ""}`;
+        key.className = "thumb-key";
+        if (control) key.classList.add("control", value);
+        if (space) key.classList.add("space");
         key.dataset.key = value;
         key.style.setProperty("--key-x", `${x}%`);
         key.style.setProperty("--key-y", `${y}%`);
-        key.setAttribute("aria-label", space ? "Space" : value === "backspace" ? "Backspace" : value === "enter" ? "Enter" : value.toUpperCase());
+        key.setAttribute("aria-label", space ? "Space" : value === "backspace" ? "Backspace" : value === "enter" ? "Send command" : value.toUpperCase());
         key.innerHTML = space ? "<span aria-hidden=\"true\"></span>" : value === "backspace" ? "⌫" : value === "enter" ? "↵" : value.toUpperCase();
         key.addEventListener("pointerdown", event => {
           if (document.body.classList.contains("drag-active")) return;
