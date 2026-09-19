@@ -1,9 +1,15 @@
-const CACHE = "terminal-018";
+const CACHE = "terminal-019";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
+const REMOTE_FILES = ["https://i.ytimg.com/vi/F_Kv_xPp_ak/maxresdefault.jpg"];
 
 self.addEventListener("install", event => {
   event.waitUntil(Promise.all([
     caches.open(CACHE).then(cache => cache.addAll(FILES)),
+    caches.open(CACHE).then(cache => Promise.all(
+      REMOTE_FILES.map(url => fetch(url, { mode: "cors" })
+        .then(response => response.ok ? cache.put(url, response) : undefined)
+        .catch(() => undefined))
+    )),
     self.skipWaiting()
   ]));
 });

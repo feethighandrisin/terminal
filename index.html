@@ -241,15 +241,13 @@
         16px);
       will-change: transform;
     }
-    .thumbnail::before,
-    .thumbnail::after {
-      content: "";
-      position: absolute;
-      border: 1px solid #191919;
-      border-radius: 50%;
+    .thumbnail img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: saturate(.62) brightness(.64) contrast(.92);
     }
-    .thumbnail::before { width: 62px; height: 62px; left: 20px; top: 13px; }
-    .thumbnail::after { width: 36px; height: 36px; left: -9px; top: -11px; }
     .shape-gmm .primary,
     .shape-gmm .secondary,
     .shape-gmm .detail { max-width: 93px; }
@@ -390,16 +388,7 @@
     body.keyboard-active .thumb-key.control {
       color: rgb(151 151 151 / 22%);
     }
-    .thumb-key.enter {
-      color: rgb(176 176 170 / 30%);
-      font-size: 15px;
-      font-weight: 600;
-      text-shadow: 0 0 9px rgb(190 190 184 / 16%);
-    }
-    body.keyboard-active .thumb-key.enter {
-      color: rgb(196 196 190 / 58%);
-      text-shadow: 0 0 11px rgb(210 210 204 / 24%);
-    }
+    .thumb-key.enter { font-size: 17px; }
     .thumb-key.control.pressed,
     body.keyboard-active .thumb-key.control.pressed {
       color: rgb(220 220 214 / 78%);
@@ -437,7 +426,7 @@
         font-size: 12px;
       }
       .thumb-key.control { width: 44px; font-size: 13px; }
-      .thumb-key.enter { font-size: 16px; }
+      .thumb-key.enter { font-size: 18px; }
       .thumb-key.space { width: 190px; }
     }
     @media (max-height: 520px) {
@@ -446,6 +435,40 @@
         height: 190px;
       }
     }
+    .media-viewer {
+      position: fixed;
+      z-index: 8;
+      inset: 0;
+      display: grid;
+      padding:
+        calc(14px + env(safe-area-inset-top))
+        calc(14px + env(safe-area-inset-right))
+        calc(14px + env(safe-area-inset-bottom))
+        calc(14px + env(safe-area-inset-left));
+      place-items: center;
+      background: #000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+    .media-viewer[hidden] { display: none; }
+    .media-viewer:focus { outline: none; }
+    .media-viewer.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .media-viewer img {
+      display: block;
+      width: 100%;
+      max-width: 1280px;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: clamp(18px, 4vw, 30px);
+      box-shadow: 0 18px 70px rgb(0 0 0 / 72%);
+      transform: scale(.975);
+      transition: transform 220ms cubic-bezier(.2,.72,.25,1);
+    }
+    .media-viewer.open img { transform: scale(1); }
     .terminal {
       position: fixed;
       z-index: 4;
@@ -481,7 +504,9 @@
       .cursor { animation: none; }
       .detail,
       .card-inner,
-      .card.command-moving { transition-duration: 1ms; }
+      .card.command-moving,
+      .media-viewer,
+      .media-viewer img { transition-duration: 1ms; }
     }
   </style>
 </head>
@@ -490,6 +515,10 @@
     <div class="sink" id="sink" aria-hidden="true"></div>
     <section class="thumb-keyboard" id="thumb-keyboard" aria-label="Custom thumb keyboard"></section>
     <main class="world" id="world" aria-label="Today spatial items"></main>
+  </div>
+
+  <div class="media-viewer" id="gmm-viewer" role="dialog" aria-modal="true" aria-label="Good Mythical Morning episode thumbnail" tabindex="-1" hidden>
+    <img id="gmm-viewer-image" crossorigin="anonymous" alt="Good Mythical Morning episode thumbnail">
   </div>
 
   <section class="terminal" aria-label="Today terminal">
@@ -503,6 +532,7 @@
   </section>
 
   <script>
+    const gmmThumbnailUrl = "https://i.ytimg.com/vi/F_Kv_xPp_ak/maxresdefault.jpg";
     const cardData = [
       { id: "work", kind: "WORK", primary: "Dark mode QA", secondary: "due tomorrow", detail: "Review colors and component states", shape: "work", rotation: -1.1 },
       { id: "message", kind: "MESSAGE", primary: "Pedro", secondary: "waiting for reply · 3h", detail: 'Last message: "Let me know what you think"', shape: "message", rotation: .8 },
@@ -518,13 +548,15 @@
     const world = document.querySelector("#world");
     const sink = document.querySelector("#sink");
     const keyboard = document.querySelector("#thumb-keyboard");
+    const gmmViewer = document.querySelector("#gmm-viewer");
+    const gmmViewerImage = document.querySelector("#gmm-viewer-image");
     const dateLabel = document.querySelector("#date");
     const timeLabel = document.querySelector("#time");
     const countLabel = document.querySelector("#count");
     const commandForm = document.querySelector("#command-form");
     const commandInput = document.querySelector("#command-input");
     const response = document.querySelector("#response");
-    const buildVersion = "terminal-018";
+    const buildVersion = "terminal-019";
     const storageKey = "today-os-state-v2";
     const cards = new Map();
     const state = new Map();
@@ -537,6 +569,7 @@
     let lastViewportWidth = 0;
     let lastViewportHeight = 0;
     let commandValue = "";
+    let viewerCloseTimer;
     const keyTimers = new WeakMap();
     const rootStyle = document.documentElement.style;
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -553,14 +586,16 @@
     };
 
     const keyboardLayout = [
-      ["q", 6, 8], ["w", 14, 8], ["e", 22, 8], ["r", 30, 8], ["t", 38, 8],
-      ["a", 5.5, 32], ["s", 13.25, 32], ["d", 21, 32], ["f", 28.75, 32], ["g", 36.5, 32],
-      ["z", 5.5, 56], ["x", 12.875, 56], ["c", 20.25, 56], ["v", 27.625, 56], ["b", 35, 56],
-      ["y", 62, 8], ["u", 70, 8], ["i", 78, 8], ["o", 86, 8], ["p", 94, 8],
-      ["h", 63.5, 32], ["j", 73.833, 32], ["k", 84.167, 32], ["l", 94.5, 32],
-      ["n", 65, 56], ["m", 75, 56], ["backspace", 85, 56], ["enter", 94.5, 56],
+      ["q", 6, 8], ["w", 13.5, 8], ["e", 21, 8], ["r", 28.5, 8], ["t", 36, 8],
+      ["a", 5.5, 32], ["s", 12.625, 32], ["d", 19.75, 32], ["f", 26.875, 32], ["g", 34, 32],
+      ["z", 5.5, 56], ["x", 11.875, 56], ["c", 18.25, 56], ["v", 24.625, 56], ["b", 31, 56],
+      ["y", 64, 8], ["u", 71.5, 8], ["i", 79, 8], ["o", 86.5, 8], ["p", 94, 8],
+      ["h", 66, 32], ["j", 75.5, 32], ["k", 85, 32], ["l", 94.5, 32],
+      ["n", 69, 56], ["m", 77.5, 56], ["backspace", 86, 56], ["enter", 94.5, 56],
       ["space", 50, 82]
     ];
+
+    gmmViewerImage.src = gmmThumbnailUrl;
 
     const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
 
@@ -703,6 +738,7 @@
         card.setAttribute("role", "button");
         card.setAttribute("tabindex", "0");
         card.setAttribute("aria-expanded", "false");
+        if (data.id === "gmm") card.setAttribute("aria-haspopup", "dialog");
         card.style.setProperty("--rotation", `${data.rotation}deg`);
         card.style.zIndex = saved.positions?.[data.id]?.z || index + 1;
         card.innerHTML = `<div class="card-gyro"><div class="card-inner">
@@ -710,7 +746,7 @@
             <div class="primary">${data.primary}</div>
             <div class="secondary">${data.secondary}</div>
             <div class="detail">${data.detail}</div>
-            ${data.thumbnail ? '<div class="thumbnail" aria-hidden="true"></div>' : ""}
+            ${data.thumbnail ? `<div class="thumbnail" aria-hidden="true"><img src="${gmmThumbnailUrl}" crossorigin="anonymous" alt=""></div>` : ""}
           </div></div>`;
         card.hidden = completed.has(data.id);
         world.append(card);
@@ -820,6 +856,34 @@
       card.setAttribute("aria-expanded", String(open));
       requestAnimationFrame(() => place(card, state.get(card.dataset.id)));
     }
+
+    function openGmmViewer() {
+      clearTimeout(viewerCloseTimer);
+      setKeyboardActive(false);
+      gmmViewer.hidden = false;
+      requestAnimationFrame(() => {
+        gmmViewer.classList.add("open");
+        gmmViewer.focus({ preventScroll: true });
+      });
+    }
+
+    function closeGmmViewer() {
+      if (gmmViewer.hidden) return;
+      gmmViewer.classList.remove("open");
+      clearTimeout(viewerCloseTimer);
+      viewerCloseTimer = setTimeout(() => { gmmViewer.hidden = true; }, 180);
+    }
+
+    gmmViewer.addEventListener("pointerdown", event => {
+      event.preventDefault();
+      closeGmmViewer();
+    });
+    addEventListener("keydown", event => {
+      if (!gmmViewer.hidden && event.key === "Escape") {
+        event.preventDefault();
+        closeGmmViewer();
+      }
+    });
 
     function sinkGeometry() {
       const rect = sink.getBoundingClientRect();
@@ -1027,6 +1091,11 @@
 
         if (!cancelled && !pointer.moved && event.timeStamp - pointer.started < 450) {
           clearSink(card);
+          if (id === "gmm") {
+            saveState();
+            openGmmViewer();
+            return;
+          }
           toggleCard(card);
           saveState();
           return;
@@ -1059,7 +1128,8 @@
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           bringToFront(card);
-          toggleCard(card);
+          if (id === "gmm") openGmmViewer();
+          else toggleCard(card);
           saveState();
         }
       });
