@@ -258,7 +258,7 @@
       border-radius: 50%;
       background: transparent;
       color: rgb(139 139 139 / 9%);
-      font: 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font: 11px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       transform: translate(-50%, -50%) scale(1);
       transform-origin: center;
       transition: color 180ms ease, transform 130ms cubic-bezier(.2,.75,.25,1);
@@ -273,11 +273,15 @@
       z-index: -1;
       border-radius: 50%;
       background: radial-gradient(circle, rgb(205 205 198 / 21%) 0%, rgb(151 151 145 / 8%) 42%, transparent 72%);
-      opacity: 0;
-      transform: scale(.58);
+      opacity: .1;
+      transform: scale(.9);
+      transition: opacity 180ms ease, transform 180ms ease;
     }
     body.keyboard-active .thumb-key {
       color: rgb(146 146 146 / 20%);
+    }
+    body.keyboard-active .thumb-key::before {
+      opacity: .15;
     }
     .thumb-key.pressed {
       color: rgb(210 210 204 / 72%);
@@ -295,7 +299,7 @@
     }
     .thumb-key.control {
       color: rgb(139 139 139 / 11%);
-      font-size: 11px;
+      font-size: 12px;
     }
     body.keyboard-active .thumb-key.control {
       color: rgb(151 151 151 / 22%);
@@ -323,12 +327,16 @@
     }
     @media (min-width: 600px) {
       .thumb-keyboard {
+        left: 20%;
+        right: 20%;
         bottom: calc(env(safe-area-inset-bottom) + 112px);
       }
       .thumb-key {
         width: 54px;
         height: 54px;
+        font-size: 12px;
       }
+      .thumb-key.control { font-size: 13px; }
       .thumb-key.space { width: 132px; }
     }
     @media (max-height: 520px) {
@@ -414,6 +422,7 @@
     const commandForm = document.querySelector("#command-form");
     const commandInput = document.querySelector("#command-input");
     const response = document.querySelector("#response");
+    const buildVersion = "terminal-009";
     const storageKey = "today-os-state-v2";
     const cards = new Map();
     const state = new Map();
@@ -444,7 +453,10 @@
     const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
 
     function readSavedState() {
-      try { return JSON.parse(localStorage.getItem(storageKey)) || {}; }
+      try {
+        const stored = JSON.parse(localStorage.getItem(storageKey)) || {};
+        return stored.build === buildVersion ? stored : {};
+      }
       catch { return {}; }
     }
 
@@ -548,7 +560,7 @@
         };
       }
       try {
-        localStorage.setItem(storageKey, JSON.stringify({ positions, completed: [...completed] }));
+        localStorage.setItem(storageKey, JSON.stringify({ build: buildVersion, positions, completed: [...completed] }));
       } catch { }
     }
 
@@ -1046,6 +1058,7 @@
     renderCards();
     renderKeyboard();
     initializePositions();
+    saveState();
     for (const card of cards.values()) attachCardInteractions(card);
     updateTerminal();
     setInterval(updateTerminal, 15000);
