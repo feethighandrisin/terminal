@@ -9,7 +9,12 @@
   <title>Terminal</title>
   <style>
     * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; background: #000; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #000;
+      overscroll-behavior: none;
+    }
     body {
       position: fixed;
       inset: 0;
@@ -17,26 +22,297 @@
       color: #858585;
       font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
-    pre {
+    .surface {
+      position: fixed;
+      inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      overflow: hidden;
+    }
+    .card {
+      --x: 0px;
+      --y: 0px;
+      --r: 0deg;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: var(--w);
+      min-height: 82px;
+      padding: 15px 16px 14px;
+      border-radius: 21px;
+      background: #121212;
+      box-shadow: 0 7px 24px rgb(0 0 0 / 28%);
+      color: #8a8a8a;
+      transform: translate3d(var(--x), var(--y), 0) rotate(var(--r));
+      transform-origin: center;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: grab;
+      will-change: transform;
+    }
+    .card:nth-child(even) { background: #151515; }
+    .card.dragging {
+      cursor: grabbing;
+      box-shadow: 0 10px 30px rgb(0 0 0 / 38%);
+    }
+    .card:focus { outline: none; }
+    .card:focus-visible { outline: 1px solid #303030; outline-offset: 2px; }
+    .kind {
+      margin-bottom: 10px;
+      color: #626262;
+      font-size: 9px;
+      letter-spacing: .12em;
+    }
+    .primary { color: #999; }
+    .secondary { color: #707070; }
+    .detail {
+      max-height: 0;
+      overflow: hidden;
+      color: #5f5f5f;
+      opacity: 0;
+      transition: max-height 160ms ease, margin-top 160ms ease, opacity 160ms ease;
+    }
+    .card.expanded .detail {
+      max-height: 18px;
+      margin-top: 8px;
+      opacity: 1;
+    }
+    .terminal {
       position: absolute;
       left: calc(22px + env(safe-area-inset-left));
       bottom: calc(24px + env(safe-area-inset-bottom));
       margin: 0;
       font: inherit;
       white-space: pre-wrap;
+      z-index: 1000;
+      pointer-events: none;
     }
     .cursor { animation: blink 1.2s steps(1, end) infinite; }
     @keyframes blink { 50% { opacity: 0; } }
-    @media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      .cursor { animation: none; }
+      .detail { transition: none; }
+    }
   </style>
 </head>
 <body>
-  <pre>SYSTEM READY
-DEVICE ONLINE
-BUILD 001
+  <main class="surface" aria-label="Today items">
+    <article class="card" data-id="work" style="--w: 176px; --r: -1.1deg" role="button" tabindex="0" aria-expanded="false">
+      <div class="kind">WORK</div>
+      <div class="primary">Dark mode QA</div>
+      <div class="secondary">due tomorrow</div>
+      <div class="detail">mobile / web</div>
+    </article>
+    <article class="card" data-id="message" style="--w: 154px; --r: .8deg" role="button" tabindex="0" aria-expanded="false">
+      <div class="kind">MESSAGE</div>
+      <div class="primary">Pedro</div>
+      <div class="secondary">waiting for reply · 3h</div>
+      <div class="detail">last sent 15:02</div>
+    </article>
+    <article class="card" data-id="package" style="--w: 142px; --r: -.5deg" role="button" tabindex="0" aria-expanded="false">
+      <div class="kind">PACKAGE</div>
+      <div class="primary">Omniva</div>
+      <div class="secondary">2 days left</div>
+      <div class="detail">pickup point 21</div>
+    </article>
+    <article class="card" data-id="gmm" style="--w: 164px; --r: 1.2deg" role="button" tabindex="0" aria-expanded="false">
+      <div class="kind">GMM</div>
+      <div class="primary">New episode</div>
+      <div class="secondary">42 min</div>
+      <div class="detail">season 04 / episode 08</div>
+    </article>
+    <article class="card" data-id="watch" style="--w: 136px; --r: -.8deg" role="button" tabindex="0" aria-expanded="false">
+      <div class="kind">WATCH</div>
+      <div class="primary">For you</div>
+      <div class="secondary">3 min</div>
+      <div class="detail">saved for tonight</div>
+    </article>
+  </main>
+  <pre class="terminal">SAT 19 SEP
+18:00
+5 ITEMS
 
 &gt; <span class="cursor">█</span></pre>
   <script>
+    const surface = document.querySelector(".surface");
+    const cards = [...document.querySelectorAll(".card")];
+    const storageKey = "today-os-cards-v1";
+    const state = {};
+    let topLayer = cards.length;
+
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
+    const saved = (() => {
+      try { return JSON.parse(localStorage.getItem(storageKey)) || {}; }
+      catch { return {}; }
+    })();
+
+    function initialPosition(card, index) {
+      const width = surface.clientWidth;
+      const room = clamp((width - 360) / 408, 0, 1);
+      const narrowRight = [18, 6, 110, 20, 146];
+      const wideRight = [48, 202, 28, 188, 52];
+      const narrowTop = [32, 98, 158, 220, 282];
+      const wideTop = [42, 108, 176, 246, 314];
+      const right = narrowRight[index] + (wideRight[index] - narrowRight[index]) * room;
+      const top = narrowTop[index] + (wideTop[index] - narrowTop[index]) * room;
+      return {
+        x: clamp(width - card.offsetWidth - right, 0, width - card.offsetWidth),
+        y: clamp(top, 0, surface.clientHeight - card.offsetHeight)
+      };
+    }
+
+    function place(card, item) {
+      const maxX = surface.clientWidth - card.offsetWidth;
+      const maxY = surface.clientHeight - card.offsetHeight;
+      item.x = clamp(item.x, 0, maxX);
+      item.y = clamp(item.y, 0, maxY);
+      card.style.setProperty("--x", `${item.x}px`);
+      card.style.setProperty("--y", `${item.y}px`);
+    }
+
+    function store() {
+      const width = surface.clientWidth;
+      const height = surface.clientHeight;
+      const value = {};
+      for (const card of cards) {
+        const item = state[card.dataset.id];
+        item.ratioX = width > card.offsetWidth ? item.x / (width - card.offsetWidth) : 0;
+        item.ratioY = height > card.offsetHeight ? item.y / (height - card.offsetHeight) : 0;
+        value[card.dataset.id] = {
+          x: item.ratioX,
+          y: item.ratioY,
+          custom: item.custom,
+          z: Number(card.style.zIndex) || 0
+        };
+      }
+      try { localStorage.setItem(storageKey, JSON.stringify(value)); }
+      catch { }
+    }
+
+    function toggle(card) {
+      const expanded = card.classList.toggle("expanded");
+      card.setAttribute("aria-expanded", expanded);
+      requestAnimationFrame(() => place(card, state[card.dataset.id]));
+    }
+
+    cards.forEach((card, index) => {
+      const id = card.dataset.id;
+      const remembered = saved[id];
+      const initial = initialPosition(card, index);
+      state[id] = {
+        x: remembered?.custom ? remembered.x * (surface.clientWidth - card.offsetWidth) : initial.x,
+        y: remembered?.custom ? remembered.y * (surface.clientHeight - card.offsetHeight) : initial.y,
+        ratioX: remembered?.x,
+        ratioY: remembered?.y,
+        custom: Boolean(remembered?.custom),
+        frame: 0,
+        pointer: null
+      };
+      card.style.zIndex = remembered?.z || index + 1;
+      topLayer = Math.max(topLayer, Number(card.style.zIndex));
+      place(card, state[id]);
+
+      card.addEventListener("pointerdown", event => {
+        if (event.button !== undefined && event.button !== 0) return;
+        const item = state[id];
+        cancelAnimationFrame(item.frame);
+        topLayer += 1;
+        card.style.zIndex = topLayer;
+        card.classList.add("dragging");
+        card.setPointerCapture(event.pointerId);
+        item.pointer = {
+          id: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          originX: item.x,
+          originY: item.y,
+          lastX: event.clientX,
+          lastY: event.clientY,
+          lastTime: event.timeStamp,
+          velocityX: 0,
+          velocityY: 0,
+          moved: false,
+          started: event.timeStamp
+        };
+      });
+
+      card.addEventListener("pointermove", event => {
+        const item = state[id];
+        const pointer = item.pointer;
+        if (!pointer || pointer.id !== event.pointerId) return;
+        event.preventDefault();
+        const dx = event.clientX - pointer.startX;
+        const dy = event.clientY - pointer.startY;
+        if (Math.hypot(dx, dy) > 5) pointer.moved = true;
+        item.x = pointer.originX + dx;
+        item.y = pointer.originY + dy;
+        place(card, item);
+        const elapsed = Math.max(event.timeStamp - pointer.lastTime, 1);
+        pointer.velocityX = pointer.velocityX * .55 + ((event.clientX - pointer.lastX) / elapsed) * .45;
+        pointer.velocityY = pointer.velocityY * .55 + ((event.clientY - pointer.lastY) / elapsed) * .45;
+        pointer.lastX = event.clientX;
+        pointer.lastY = event.clientY;
+        pointer.lastTime = event.timeStamp;
+      });
+
+      function release(event) {
+        const item = state[id];
+        const pointer = item.pointer;
+        if (!pointer || pointer.id !== event.pointerId) return;
+        item.pointer = null;
+        card.classList.remove("dragging");
+        if (event.type !== "pointercancel" && !pointer.moved && event.timeStamp - pointer.started < 400) {
+          toggle(card);
+          return;
+        }
+        if (pointer.moved) item.custom = true;
+        store();
+        let velocityX = pointer.velocityX * 7;
+        let velocityY = pointer.velocityY * 7;
+        let frames = 0;
+        const settle = () => {
+          velocityX *= .78;
+          velocityY *= .78;
+          item.x += velocityX;
+          item.y += velocityY;
+          place(card, item);
+          frames += 1;
+          if (frames < 12 && Math.hypot(velocityX, velocityY) > .25) {
+            item.frame = requestAnimationFrame(settle);
+          } else {
+            store();
+          }
+        };
+        item.frame = requestAnimationFrame(settle);
+      }
+
+      card.addEventListener("pointerup", release);
+      card.addEventListener("pointercancel", release);
+      card.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          toggle(card);
+        }
+      });
+    });
+
+    let resizeFrame;
+    addEventListener("resize", () => {
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        cards.forEach((card, index) => {
+          const item = state[card.dataset.id];
+          cancelAnimationFrame(item.frame);
+          if (item.custom) {
+            item.x = item.ratioX * (surface.clientWidth - card.offsetWidth);
+            item.y = item.ratioY * (surface.clientHeight - card.offsetHeight);
+          } else {
+            Object.assign(item, initialPosition(card, index));
+          }
+          place(card, item);
+        });
+      });
+    });
+
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
   </script>
 </body>
