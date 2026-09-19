@@ -11,37 +11,50 @@
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
-      min-height: 100%;
-      background: #000;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
       overscroll-behavior: none;
+      background: #000;
     }
     body {
       position: fixed;
       inset: 0;
-      overflow: hidden;
       color: #858585;
       font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
-    .surface {
+    .viewport {
       position: fixed;
+      z-index: 2;
       inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-      overflow: hidden;
+      overflow-x: auto;
+      overflow-y: hidden;
+      overscroll-behavior-x: contain;
+      touch-action: pan-x;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      cursor: grab;
+    }
+    .viewport::-webkit-scrollbar { display: none; }
+    .viewport.panning { cursor: grabbing; }
+    .world {
+      position: relative;
+      min-width: 100%;
+      height: 100%;
     }
     .card {
       --x: 0px;
       --y: 0px;
-      --r: 0deg;
+      --rotation: 0deg;
+      --finish-rotation: 0deg;
+      --finish-scale: 1;
       position: absolute;
       top: 0;
       left: 0;
       width: var(--w);
-      min-height: 82px;
-      padding: 15px 16px 14px;
-      border-radius: 21px;
-      background: #121212;
-      box-shadow: 0 7px 24px rgb(0 0 0 / 28%);
-      color: #8a8a8a;
-      transform: translate3d(var(--x), var(--y), 0) rotate(var(--r));
+      min-height: var(--h);
+      color: #858585;
+      transform: translate3d(var(--x), var(--y), 0) rotate(calc(var(--rotation) + var(--finish-rotation))) scale(var(--finish-scale));
       transform-origin: center;
       touch-action: none;
       user-select: none;
@@ -49,176 +62,460 @@
       cursor: grab;
       will-change: transform;
     }
-    .card:nth-child(even) { background: #151515; }
-    .card.dragging {
-      cursor: grabbing;
-      box-shadow: 0 10px 30px rgb(0 0 0 / 38%);
-    }
+    .card[hidden] { display: none; }
     .card:focus { outline: none; }
-    .card:focus-visible { outline: 1px solid #303030; outline-offset: 2px; }
+    .card:focus-visible .card-inner { outline: 1px solid #303030; outline-offset: 2px; }
+    .card-inner {
+      width: 100%;
+      min-height: var(--h);
+      padding: 16px;
+      overflow: hidden;
+      border-radius: var(--radius, 21px);
+      background: var(--surface, #121212);
+      box-shadow: 0 7px 25px rgb(0 0 0 / 30%);
+      transform: scale(var(--hold-scale, 1));
+      transform-origin: center;
+      transition: transform 130ms cubic-bezier(.2,.7,.25,1), box-shadow 150ms ease, background 160ms ease;
+    }
+    .card.dragging { cursor: grabbing; }
+    .card.dragging .card-inner {
+      box-shadow: 0 15px 38px rgb(0 0 0 / 48%);
+    }
+    .card.command-moving {
+      transition: transform 420ms cubic-bezier(.22,.8,.28,1);
+    }
+    .card.completing {
+      opacity: 0;
+      filter: blur(3px);
+      transition:
+        transform 440ms cubic-bezier(.4,0,.3,1),
+        opacity 390ms cubic-bezier(.5,0,.8,.2),
+        filter 390ms ease;
+    }
+    .shape-work { --w: 164px; --h: 154px; --surface: #141414; --radius: 23px; }
+    .shape-message { --w: 154px; --h: 92px; --surface: #111; --radius: 20px; }
+    .shape-package { --w: 224px; --h: 88px; --surface: #151515; --radius: 21px; }
+    .shape-gmm { --w: 204px; --h: 118px; --surface: #121212; --radius: 22px; }
+    .shape-watch { --w: 126px; --h: 154px; --surface: #151515; --radius: 22px; }
+    .shape-calendar { --w: 168px; --h: 112px; --surface: #111; --radius: 20px; }
+    .shape-reminder { --w: 142px; --h: 92px; --surface: #141414; --radius: 19px; }
+    .shape-read { --w: 218px; --h: 100px; --surface: #121212; --radius: 22px; }
     .kind {
-      margin-bottom: 10px;
-      color: #626262;
+      margin-bottom: 11px;
+      color: #5f5f5f;
       font-size: 9px;
       letter-spacing: .12em;
     }
-    .primary { color: #999; }
-    .secondary { color: #707070; }
+    .primary { position: relative; z-index: 1; color: #9a9a9a; }
+    .secondary { position: relative; z-index: 1; color: #707070; }
     .detail {
+      position: relative;
+      z-index: 1;
       max-height: 0;
+      margin-top: 0;
       overflow: hidden;
-      color: #5f5f5f;
+      color: #616161;
       opacity: 0;
-      transition: max-height 160ms ease, margin-top 160ms ease, opacity 160ms ease;
+      transition: max-height 180ms ease, margin-top 180ms ease, opacity 180ms ease;
     }
     .card.expanded .detail {
-      max-height: 18px;
-      margin-top: 8px;
+      max-height: 40px;
+      margin-top: 10px;
       opacity: 1;
     }
-    .terminal {
+    .thumbnail {
       position: absolute;
+      right: 11px;
+      bottom: 11px;
+      width: 78px;
+      height: 57px;
+      overflow: hidden;
+      border-radius: 14px;
+      background: #090909;
+    }
+    .thumbnail::before,
+    .thumbnail::after {
+      content: "";
+      position: absolute;
+      border: 1px solid #191919;
+      border-radius: 50%;
+    }
+    .thumbnail::before { width: 62px; height: 62px; left: 20px; top: 13px; }
+    .thumbnail::after { width: 36px; height: 36px; left: -9px; top: -11px; }
+    .shape-gmm .primary,
+    .shape-gmm .secondary,
+    .shape-gmm .detail { max-width: 93px; }
+    .sink {
+      --intensity: 0;
+      --angle: 0deg;
+      position: fixed;
+      z-index: 1;
+      left: calc(env(safe-area-inset-left) - 18px);
+      bottom: calc(env(safe-area-inset-bottom) + 72px);
+      width: 190px;
+      height: 190px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 120ms linear;
+    }
+    body.drag-active .sink {
+      opacity: calc(.035 + var(--intensity) * .78);
+    }
+    .sink::before {
+      content: "";
+      position: absolute;
+      inset: 24px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse at center, rgb(4 46 24 / 88%) 0%, rgb(2 26 14 / 62%) 34%, rgb(0 8 4 / 0%) 72%);
+      filter: blur(14px);
+      transform: scale(calc(.55 + var(--intensity) * .52));
+      transition: transform 80ms linear;
+    }
+    .sink::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 47%;
+      width: 116px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(90deg, rgb(5 49 25 / 55%), rgb(1 18 9 / 0%));
+      filter: blur(13px);
+      opacity: var(--intensity);
+      transform: rotate(var(--angle)) scaleX(calc(.35 + var(--intensity) * 1.1));
+      transform-origin: left center;
+    }
+    .sink.absorbing::before { animation: absorb 450ms cubic-bezier(.5,0,.2,1); }
+    @keyframes absorb {
+      0% { transform: scale(1.08); opacity: 1; }
+      55% { transform: scale(.82); opacity: .95; }
+      100% { transform: scale(.18); opacity: 0; }
+    }
+    .terminal {
+      position: fixed;
+      z-index: 4;
       left: calc(22px + env(safe-area-inset-left));
       bottom: calc(24px + env(safe-area-inset-bottom));
-      margin: 0;
-      font: inherit;
-      white-space: pre-wrap;
-      z-index: 1000;
+      min-width: 120px;
+      color: #858585;
       pointer-events: none;
+    }
+    .terminal-status { white-space: pre; }
+    .command,
+    .response {
+      display: flex;
+      align-items: baseline;
+      min-height: 18px;
+      margin-top: 18px;
+      pointer-events: auto;
+    }
+    .command { cursor: text; }
+    .command[hidden],
+    .response[hidden] { display: none; }
+    .command input {
+      width: 1ch;
+      min-width: 1ch;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      border-radius: 0;
+      background: transparent;
+      color: #858585;
+      caret-color: transparent;
+      font: inherit;
     }
     .cursor { animation: blink 1.2s steps(1, end) infinite; }
     @keyframes blink { 50% { opacity: 0; } }
     @media (prefers-reduced-motion: reduce) {
       .cursor { animation: none; }
-      .detail { transition: none; }
+      .detail,
+      .card-inner,
+      .card.command-moving { transition-duration: 1ms; }
     }
   </style>
 </head>
 <body>
-  <main class="surface" aria-label="Today items">
-    <article class="card" data-id="work" style="--w: 176px; --r: -1.1deg" role="button" tabindex="0" aria-expanded="false">
-      <div class="kind">WORK</div>
-      <div class="primary">Dark mode QA</div>
-      <div class="secondary">due tomorrow</div>
-      <div class="detail">mobile / web</div>
-    </article>
-    <article class="card" data-id="message" style="--w: 154px; --r: .8deg" role="button" tabindex="0" aria-expanded="false">
-      <div class="kind">MESSAGE</div>
-      <div class="primary">Pedro</div>
-      <div class="secondary">waiting for reply · 3h</div>
-      <div class="detail">last sent 15:02</div>
-    </article>
-    <article class="card" data-id="package" style="--w: 142px; --r: -.5deg" role="button" tabindex="0" aria-expanded="false">
-      <div class="kind">PACKAGE</div>
-      <div class="primary">Omniva</div>
-      <div class="secondary">2 days left</div>
-      <div class="detail">pickup point 21</div>
-    </article>
-    <article class="card" data-id="gmm" style="--w: 164px; --r: 1.2deg" role="button" tabindex="0" aria-expanded="false">
-      <div class="kind">GMM</div>
-      <div class="primary">New episode</div>
-      <div class="secondary">42 min</div>
-      <div class="detail">season 04 / episode 08</div>
-    </article>
-    <article class="card" data-id="watch" style="--w: 136px; --r: -.8deg" role="button" tabindex="0" aria-expanded="false">
-      <div class="kind">WATCH</div>
-      <div class="primary">For you</div>
-      <div class="secondary">3 min</div>
-      <div class="detail">saved for tonight</div>
-    </article>
-  </main>
-  <pre class="terminal">SAT 19 SEP
-18:00
-5 ITEMS
+  <div class="viewport" id="viewport">
+    <main class="world" id="world" aria-label="Today spatial items"></main>
+  </div>
 
-&gt; <span class="cursor">█</span></pre>
+  <div class="sink" id="sink" aria-hidden="true"></div>
+
+  <section class="terminal" aria-label="Today terminal">
+    <div class="terminal-status"><span id="date"></span>
+<span id="time"></span>
+<span id="count"></span></div>
+    <form class="command" id="command-form" autocomplete="off">
+      <span>&gt;&nbsp;</span><input id="command-input" aria-label="Command" enterkeyhint="send" autocapitalize="none" autocomplete="off" spellcheck="false"><span class="cursor">█</span>
+    </form>
+    <div class="response" id="response" aria-live="polite" hidden></div>
+  </section>
+
   <script>
-    const surface = document.querySelector(".surface");
-    const cards = [...document.querySelectorAll(".card")];
-    const storageKey = "today-os-cards-v1";
-    const state = {};
-    let topLayer = cards.length;
+    const cardData = [
+      { id: "work", kind: "WORK", primary: "Dark mode QA", secondary: "due tomorrow", detail: "Review colors and component states", shape: "work", rotation: -1.1 },
+      { id: "message", kind: "MESSAGE", primary: "Pedro", secondary: "waiting for reply · 3h", detail: 'Last message: "Let me know what you think"', shape: "message", rotation: .8 },
+      { id: "package", kind: "PACKAGE", primary: "Omniva", secondary: "2 days left", detail: "Parcel machine · Tallinn", shape: "package", rotation: -.45 },
+      { id: "gmm", kind: "GMM", primary: "New episode", secondary: "42 min", detail: "Uploaded today", shape: "gmm", rotation: 1.05, thumbnail: true },
+      { id: "watch", kind: "WATCH", primary: "For you", secondary: "3 min", detail: "Recommended for tonight", shape: "watch", rotation: -.75 },
+      { id: "calendar", kind: "CALENDAR", primary: "Design review", secondary: "tomorrow · 14:00", detail: "30 min · Product Design", shape: "calendar", rotation: .55 },
+      { id: "reminder", kind: "REMINDER", primary: "Order dog food", secondary: "this week", detail: "Running low soon", shape: "reminder", rotation: -1.2 },
+      { id: "read", kind: "READ", primary: "Saved article", secondary: "8 min", detail: "Saved yesterday", shape: "read", rotation: .7 }
+    ];
+
+    const viewport = document.querySelector("#viewport");
+    const world = document.querySelector("#world");
+    const sink = document.querySelector("#sink");
+    const dateLabel = document.querySelector("#date");
+    const timeLabel = document.querySelector("#time");
+    const countLabel = document.querySelector("#count");
+    const commandForm = document.querySelector("#command-form");
+    const commandInput = document.querySelector("#command-input");
+    const response = document.querySelector("#response");
+    const storageKey = "today-os-state-v2";
+    const cards = new Map();
+    const state = new Map();
+    let completed = new Set();
+    let worldWidth = 0;
+    let topLayer = cardData.length;
+    let responseTimer;
+    let resizeFrame;
+    let panFrame;
+    let lastViewportWidth = 0;
+    let lastViewportHeight = 0;
 
     const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
-    const saved = (() => {
+
+    function readSavedState() {
       try { return JSON.parse(localStorage.getItem(storageKey)) || {}; }
       catch { return {}; }
-    })();
+    }
 
-    function initialPosition(card, index) {
-      const width = surface.clientWidth;
-      const room = clamp((width - 360) / 408, 0, 1);
-      const narrowRight = [18, 6, 110, 20, 146];
-      const wideRight = [48, 202, 28, 188, 52];
-      const narrowTop = [32, 98, 158, 220, 282];
-      const wideTop = [42, 108, 176, 246, 314];
-      const right = narrowRight[index] + (wideRight[index] - narrowRight[index]) * room;
-      const top = narrowTop[index] + (wideTop[index] - narrowTop[index]) * room;
-      return {
-        x: clamp(width - card.offsetWidth - right, 0, width - card.offsetWidth),
-        y: clamp(top, 0, surface.clientHeight - card.offsetHeight)
-      };
+    const saved = readSavedState();
+    completed = new Set((saved.completed || []).filter(id => cardData.some(card => card.id === id)));
+
+    function renderCards() {
+      cardData.forEach((data, index) => {
+        const card = document.createElement("article");
+        card.className = `card shape-${data.shape}`;
+        card.dataset.id = data.id;
+        card.setAttribute("role", "button");
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("aria-expanded", "false");
+        card.style.setProperty("--rotation", `${data.rotation}deg`);
+        card.style.zIndex = saved.positions?.[data.id]?.z || index + 1;
+        card.innerHTML = `<div class="card-inner">
+          <div class="kind">${data.kind}</div>
+          <div class="primary">${data.primary}</div>
+          <div class="secondary">${data.secondary}</div>
+          <div class="detail">${data.detail}</div>
+          ${data.thumbnail ? '<div class="thumbnail" aria-hidden="true"></div>' : ""}
+        </div>`;
+        card.hidden = completed.has(data.id);
+        world.append(card);
+        cards.set(data.id, card);
+        topLayer = Math.max(topLayer, Number(card.style.zIndex));
+      });
+    }
+
+    function defaultPosition(data, card) {
+      const width = viewport.clientWidth;
+      const height = viewport.clientHeight;
+      const room = clamp((width - 380) / 360, 0, 1);
+      const y = value => clamp(value, 18, height - card.offsetHeight - 18);
+      switch (data.id) {
+        case "work": return { x: width - card.offsetWidth - (16 + room * 115), y: y(38 + room * 18) };
+        case "message": return { x: 52 + room * 325, y: y(150 + room * 20) };
+        case "package": return { x: width - 34, y: y(270 + room * 48) };
+        case "gmm": return { x: width + 120 + room * 40, y: y(66 + room * 30) };
+        case "watch": return { x: width + 320 + room * 70, y: y(222 + room * 36) };
+        case "calendar": return { x: width + 500 + room * 100, y: y(116 + room * 24) };
+        case "reminder": return { x: width + 700 + room * 140, y: y(280 + room * 26) };
+        default: return { x: width + 890 + room * 200, y: y(50 + room * 26) };
+      }
+    }
+
+    function measureWorld() {
+      let furthest = viewport.clientWidth;
+      for (const data of cardData) {
+        const card = cards.get(data.id);
+        const position = defaultPosition(data, card);
+        furthest = Math.max(furthest, position.x + card.offsetWidth + 150);
+      }
+      worldWidth = Math.ceil(furthest);
+      world.style.width = `${worldWidth}px`;
     }
 
     function place(card, item) {
-      const maxX = surface.clientWidth - card.offsetWidth;
-      const maxY = surface.clientHeight - card.offsetHeight;
-      item.x = clamp(item.x, 0, maxX);
-      item.y = clamp(item.y, 0, maxY);
+      item.x = clamp(item.x, 0, worldWidth - card.offsetWidth);
+      item.y = clamp(item.y, 12, viewport.clientHeight - card.offsetHeight - 12);
       card.style.setProperty("--x", `${item.x}px`);
       card.style.setProperty("--y", `${item.y}px`);
     }
 
-    function store() {
-      const width = surface.clientWidth;
-      const height = surface.clientHeight;
-      const value = {};
-      for (const card of cards) {
-        const item = state[card.dataset.id];
-        item.ratioX = width > card.offsetWidth ? item.x / (width - card.offsetWidth) : 0;
-        item.ratioY = height > card.offsetHeight ? item.y / (height - card.offsetHeight) : 0;
-        value[card.dataset.id] = {
+    function initializePositions() {
+      measureWorld();
+      cardData.forEach((data, index) => {
+        const card = cards.get(data.id);
+        const remembered = saved.positions?.[data.id];
+        const initial = defaultPosition(data, card);
+        const item = {
+          x: remembered?.custom ? remembered.x * (worldWidth - card.offsetWidth) : initial.x,
+          y: remembered?.custom ? remembered.y * (viewport.clientHeight - card.offsetHeight) : initial.y,
+          ratioX: remembered?.x || 0,
+          ratioY: remembered?.y || 0,
+          custom: Boolean(remembered?.custom),
+          pointer: null,
+          frame: 0
+        };
+        state.set(data.id, item);
+        card.style.zIndex = remembered?.z || index + 1;
+        place(card, item);
+      });
+      lastViewportWidth = viewport.clientWidth;
+      lastViewportHeight = viewport.clientHeight;
+    }
+
+    function saveState() {
+      const positions = {};
+      for (const data of cardData) {
+        const card = cards.get(data.id);
+        const item = state.get(data.id);
+        item.ratioX = worldWidth > card.offsetWidth ? item.x / (worldWidth - card.offsetWidth) : 0;
+        item.ratioY = viewport.clientHeight > card.offsetHeight ? item.y / (viewport.clientHeight - card.offsetHeight) : 0;
+        positions[data.id] = {
           x: item.ratioX,
           y: item.ratioY,
           custom: item.custom,
           z: Number(card.style.zIndex) || 0
         };
       }
-      try { localStorage.setItem(storageKey, JSON.stringify(value)); }
-      catch { }
+      try {
+        localStorage.setItem(storageKey, JSON.stringify({ positions, completed: [...completed] }));
+      } catch { }
     }
 
-    function toggle(card) {
-      const expanded = card.classList.toggle("expanded");
-      card.setAttribute("aria-expanded", expanded);
-      requestAnimationFrame(() => place(card, state[card.dataset.id]));
+    function bringToFront(card) {
+      topLayer += 1;
+      card.style.zIndex = topLayer;
     }
 
-    cards.forEach((card, index) => {
+    function toggleCard(card, forceOpen = false) {
+      const open = forceOpen || !card.classList.contains("expanded");
+      card.classList.toggle("expanded", open);
+      card.setAttribute("aria-expanded", String(open));
+      requestAnimationFrame(() => place(card, state.get(card.dataset.id)));
+    }
+
+    function sinkGeometry() {
+      const rect = sink.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    }
+
+    function updateSink(card, item, pointer) {
+      const cardX = item.x - viewport.scrollLeft + pointer.viewportLeft + pointer.width / 2;
+      const cardY = item.y + pointer.viewportTop + pointer.height / 2;
+      const deltaX = cardX - pointer.sinkX;
+      const deltaY = cardY - pointer.sinkY;
+      const distance = Math.hypot(deltaX, deltaY);
+      const intensity = clamp(1 - (distance - 92) / 350, 0, 1);
+      const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+      pointer.inside = distance < 108;
+      sink.style.setProperty("--intensity", intensity.toFixed(3));
+      sink.style.setProperty("--angle", `${angle}deg`);
+      card.style.setProperty("--hold-scale", String(1.025 - intensity * .12));
+      return distance;
+    }
+
+    function clearSink(card) {
+      document.body.classList.remove("drag-active");
+      sink.style.setProperty("--intensity", "0");
+      sink.classList.remove("absorbing");
+      if (card) card.style.removeProperty("--hold-scale");
+    }
+
+    function showResponse(message, duration = 1800) {
+      clearTimeout(responseTimer);
+      response.textContent = message;
+      commandForm.hidden = true;
+      response.hidden = false;
+      responseTimer = setTimeout(() => {
+        response.hidden = true;
+        commandForm.hidden = false;
+      }, duration);
+    }
+
+    function updateTerminal() {
+      const now = new Date();
+      const weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+      const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+      const pad = value => String(value).padStart(2, "0");
+      dateLabel.textContent = `${weekdays[now.getDay()]} ${pad(now.getDate())} ${months[now.getMonth()]}`;
+      timeLabel.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      countLabel.textContent = `${cardData.length - completed.size} ITEMS`;
+    }
+
+    function completeCard(card, item, pointer) {
       const id = card.dataset.id;
-      const remembered = saved[id];
-      const initial = initialPosition(card, index);
-      state[id] = {
-        x: remembered?.custom ? remembered.x * (surface.clientWidth - card.offsetWidth) : initial.x,
-        y: remembered?.custom ? remembered.y * (surface.clientHeight - card.offsetHeight) : initial.y,
-        ratioX: remembered?.x,
-        ratioY: remembered?.y,
-        custom: Boolean(remembered?.custom),
-        frame: 0,
-        pointer: null
+      completed.add(id);
+      item.custom = true;
+      saveState();
+      updateTerminal();
+      showResponse("done.");
+
+      const targetX = pointer.sinkX - pointer.viewportLeft + viewport.scrollLeft - card.offsetWidth / 2;
+      const targetY = pointer.sinkY - pointer.viewportTop - card.offsetHeight / 2;
+      card.style.pointerEvents = "none";
+      card.classList.add("completing");
+      card.style.setProperty("--x", `${targetX}px`);
+      card.style.setProperty("--y", `${targetY}px`);
+      card.style.setProperty("--finish-scale", ".04");
+      card.style.setProperty("--finish-rotation", "8deg");
+      sink.classList.add("absorbing");
+
+      setTimeout(() => {
+        card.hidden = true;
+        card.classList.remove("completing", "expanded");
+        card.setAttribute("aria-expanded", "false");
+        card.style.pointerEvents = "";
+        card.style.removeProperty("--finish-scale");
+        card.style.removeProperty("--finish-rotation");
+        clearSink(card);
+      }, 460);
+    }
+
+    function settle(card, item, velocityX, velocityY) {
+      let frames = 0;
+      const frame = () => {
+        velocityX *= .8;
+        velocityY *= .8;
+        item.x += velocityX;
+        item.y += velocityY;
+        place(card, item);
+        frames += 1;
+        if (frames < 14 && Math.hypot(velocityX, velocityY) > .2) {
+          item.frame = requestAnimationFrame(frame);
+        } else {
+          saveState();
+        }
       };
-      card.style.zIndex = remembered?.z || index + 1;
-      topLayer = Math.max(topLayer, Number(card.style.zIndex));
-      place(card, state[id]);
+      item.frame = requestAnimationFrame(frame);
+    }
+
+    function attachCardInteractions(card) {
+      const id = card.dataset.id;
 
       card.addEventListener("pointerdown", event => {
         if (event.button !== undefined && event.button !== 0) return;
-        const item = state[id];
+        const item = state.get(id);
         cancelAnimationFrame(item.frame);
-        topLayer += 1;
-        card.style.zIndex = topLayer;
+        bringToFront(card);
+        card.classList.remove("command-moving");
         card.classList.add("dragging");
         card.setPointerCapture(event.pointerId);
+        const viewRect = viewport.getBoundingClientRect();
+        const sinkCenter = sinkGeometry();
         item.pointer = {
           id: event.pointerId,
           startX: event.clientX,
@@ -228,24 +525,50 @@
           lastX: event.clientX,
           lastY: event.clientY,
           lastTime: event.timeStamp,
+          started: event.timeStamp,
           velocityX: 0,
           velocityY: 0,
           moved: false,
-          started: event.timeStamp
+          inside: false,
+          viewportLeft: viewRect.left,
+          viewportTop: viewRect.top,
+          width: card.offsetWidth,
+          height: card.offsetHeight,
+          sinkX: sinkCenter.x,
+          sinkY: sinkCenter.y
         };
+        document.body.classList.add("drag-active");
+        updateSink(card, item, item.pointer);
       });
 
       card.addEventListener("pointermove", event => {
-        const item = state[id];
+        const item = state.get(id);
         const pointer = item.pointer;
         if (!pointer || pointer.id !== event.pointerId) return;
         event.preventDefault();
         const dx = event.clientX - pointer.startX;
         const dy = event.clientY - pointer.startY;
-        if (Math.hypot(dx, dy) > 5) pointer.moved = true;
-        item.x = pointer.originX + dx;
-        item.y = pointer.originY + dy;
+        if (Math.hypot(dx, dy) > 6) pointer.moved = true;
+
+        const rawX = pointer.originX + dx;
+        const rawY = pointer.originY + dy;
+        item.x = rawX;
+        item.y = rawY;
         place(card, item);
+
+        const screenX = item.x - viewport.scrollLeft + pointer.viewportLeft + pointer.width / 2;
+        const screenY = item.y + pointer.viewportTop + pointer.height / 2;
+        const distance = Math.hypot(screenX - pointer.sinkX, screenY - pointer.sinkY);
+        if (distance < 185) {
+          const pull = Math.pow((185 - distance) / 185, 2) * .18;
+          const sinkWorldX = pointer.sinkX - pointer.viewportLeft + viewport.scrollLeft - pointer.width / 2;
+          const sinkWorldY = pointer.sinkY - pointer.viewportTop - pointer.height / 2;
+          item.x = rawX + (sinkWorldX - rawX) * pull;
+          item.y = rawY + (sinkWorldY - rawY) * pull;
+          place(card, item);
+        }
+        updateSink(card, item, pointer);
+
         const elapsed = Math.max(event.timeStamp - pointer.lastTime, 1);
         pointer.velocityX = pointer.velocityX * .55 + ((event.clientX - pointer.lastX) / elapsed) * .45;
         pointer.velocityY = pointer.velocityY * .55 + ((event.clientY - pointer.lastY) / elapsed) * .45;
@@ -254,66 +577,235 @@
         pointer.lastTime = event.timeStamp;
       });
 
-      function release(event) {
-        const item = state[id];
+      function release(event, cancelled = event.type === "pointercancel") {
+        const item = state.get(id);
         const pointer = item.pointer;
         if (!pointer || pointer.id !== event.pointerId) return;
         item.pointer = null;
         card.classList.remove("dragging");
-        if (event.type !== "pointercancel" && !pointer.moved && event.timeStamp - pointer.started < 400) {
-          toggle(card);
+
+        if (!cancelled && !pointer.moved && event.timeStamp - pointer.started < 450) {
+          clearSink(card);
+          toggleCard(card);
+          saveState();
           return;
         }
+        if (!cancelled && pointer.inside) {
+          completeCard(card, item, pointer);
+          return;
+        }
+
+        clearSink(card);
         if (pointer.moved) item.custom = true;
-        store();
-        let velocityX = pointer.velocityX * 7;
-        let velocityY = pointer.velocityY * 7;
-        let frames = 0;
-        const settle = () => {
-          velocityX *= .78;
-          velocityY *= .78;
-          item.x += velocityX;
-          item.y += velocityY;
-          place(card, item);
-          frames += 1;
-          if (frames < 12 && Math.hypot(velocityX, velocityY) > .25) {
-            item.frame = requestAnimationFrame(settle);
-          } else {
-            store();
-          }
-        };
-        item.frame = requestAnimationFrame(settle);
+        saveState();
+        settle(
+          card,
+          item,
+          clamp(pointer.velocityX * 8, -8, 8),
+          clamp(pointer.velocityY * 8, -8, 8)
+        );
       }
 
       card.addEventListener("pointerup", release);
       card.addEventListener("pointercancel", release);
+      card.addEventListener("lostpointercapture", event => {
+        const item = state.get(id);
+        if (item.pointer?.id === event.pointerId) release(event, true);
+      });
+      addEventListener("pointerup", release);
+      addEventListener("pointercancel", release);
       card.addEventListener("keydown", event => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          toggle(card);
+          bringToFront(card);
+          toggleCard(card);
+          saveState();
         }
       });
+    }
+
+    function summon(id, message) {
+      if (completed.has(id)) {
+        showResponse(message);
+        return;
+      }
+      const card = cards.get(id);
+      const item = state.get(id);
+      cancelAnimationFrame(item.frame);
+      bringToFront(card);
+      toggleCard(card, true);
+      item.x = clamp(viewport.scrollLeft + viewport.clientWidth - card.offsetWidth - 28, 0, worldWidth - card.offsetWidth);
+      item.y = clamp(44, 12, viewport.clientHeight - card.offsetHeight - 12);
+      item.custom = true;
+      card.classList.add("command-moving");
+      place(card, item);
+      setTimeout(() => card.classList.remove("command-moving"), 440);
+      saveState();
+      showResponse(message);
+    }
+
+    function resetLayout(restoreCompleted = false) {
+      if (restoreCompleted) completed.clear();
+      measureWorld();
+      cardData.forEach((data, index) => {
+        if (!restoreCompleted && completed.has(data.id)) return;
+        const card = cards.get(data.id);
+        const item = state.get(data.id);
+        cancelAnimationFrame(item.frame);
+        card.hidden = false;
+        card.classList.remove("expanded", "completing");
+        card.setAttribute("aria-expanded", "false");
+        card.style.pointerEvents = "";
+        card.style.removeProperty("--finish-scale");
+        card.style.removeProperty("--finish-rotation");
+        card.style.zIndex = index + 1;
+        Object.assign(item, defaultPosition(data, card), { custom: false });
+        card.classList.add("command-moving");
+        place(card, item);
+        setTimeout(() => card.classList.remove("command-moving"), 440);
+      });
+      topLayer = cardData.length;
+      viewport.scrollTo({ left: 0, behavior: "smooth" });
+      saveState();
+      updateTerminal();
+    }
+
+    function runCommand(value) {
+      const command = value.trim().toLowerCase();
+      if (!command) return;
+      if (command.includes("restore")) {
+        try { localStorage.removeItem("today-os-cards-v1"); } catch { }
+        resetLayout(true);
+        showResponse("items restored.");
+      } else if (command.includes("reset")) {
+        resetLayout(false);
+        showResponse("layout reset.");
+      } else if (command.includes("package") || command.includes("parcel")) {
+        summon("package", "1 package waiting.");
+      } else if (command.includes("what should i do") || command.includes("what should i focus on") || command.includes("focus")) {
+        summon("work", "priority selected.");
+      } else {
+        showResponse("noted.");
+      }
+    }
+
+    commandInput.addEventListener("input", () => {
+      commandInput.style.width = `${Math.max(1, commandInput.value.length)}ch`;
+    });
+    function submitCommand() {
+      const value = commandInput.value;
+      commandInput.value = "";
+      commandInput.style.width = "1ch";
+      runCommand(value);
+    }
+    commandInput.addEventListener("keydown", event => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      submitCommand();
+    });
+    commandForm.addEventListener("submit", event => {
+      event.preventDefault();
+      submitCommand();
+    });
+    commandForm.addEventListener("pointerdown", event => {
+      event.stopPropagation();
+      commandInput.focus();
     });
 
-    let resizeFrame;
+    viewport.addEventListener("wheel", event => {
+      if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+        viewport.scrollLeft += event.deltaY;
+        event.preventDefault();
+      }
+    }, { passive: false });
+
+    let backgroundPan = null;
+    viewport.addEventListener("pointerdown", event => {
+      if (event.pointerType !== "mouse" || event.button !== 0 || event.target.closest(".card")) return;
+      cancelAnimationFrame(panFrame);
+      backgroundPan = { id: event.pointerId, x: event.clientX, scroll: viewport.scrollLeft, lastX: event.clientX, lastTime: event.timeStamp, velocity: 0 };
+      viewport.classList.add("panning");
+      viewport.setPointerCapture(event.pointerId);
+    });
+    viewport.addEventListener("pointermove", event => {
+      if (!backgroundPan || backgroundPan.id !== event.pointerId) return;
+      viewport.scrollLeft = backgroundPan.scroll - (event.clientX - backgroundPan.x);
+      const elapsed = Math.max(event.timeStamp - backgroundPan.lastTime, 1);
+      backgroundPan.velocity = backgroundPan.velocity * .55 + ((backgroundPan.lastX - event.clientX) / elapsed) * .45;
+      backgroundPan.lastX = event.clientX;
+      backgroundPan.lastTime = event.timeStamp;
+    });
+    function releaseBackground(event) {
+      if (!backgroundPan || backgroundPan.id !== event.pointerId) return;
+      let velocity = clamp(backgroundPan.velocity * 7, -14, 14);
+      backgroundPan = null;
+      viewport.classList.remove("panning");
+      const glide = () => {
+        velocity *= .86;
+        viewport.scrollLeft += velocity;
+        if (Math.abs(velocity) > .2) panFrame = requestAnimationFrame(glide);
+      };
+      panFrame = requestAnimationFrame(glide);
+    }
+    viewport.addEventListener("pointerup", releaseBackground);
+    viewport.addEventListener("pointercancel", releaseBackground);
+
     addEventListener("resize", () => {
       cancelAnimationFrame(resizeFrame);
       resizeFrame = requestAnimationFrame(() => {
-        cards.forEach((card, index) => {
-          const item = state[card.dataset.id];
-          cancelAnimationFrame(item.frame);
+        const oldWorldWidth = worldWidth;
+        const oldViewportWidth = lastViewportWidth;
+        const oldViewportHeight = lastViewportHeight;
+        const scrollRatio = oldWorldWidth > oldViewportWidth ? viewport.scrollLeft / (oldWorldWidth - oldViewportWidth) : 0;
+        for (const data of cardData) {
+          const card = cards.get(data.id);
+          const item = state.get(data.id);
           if (item.custom) {
-            item.x = item.ratioX * (surface.clientWidth - card.offsetWidth);
-            item.y = item.ratioY * (surface.clientHeight - card.offsetHeight);
+            item.ratioX = item.x / Math.max(1, oldWorldWidth - card.offsetWidth);
+            item.ratioY = item.y / Math.max(1, oldViewportHeight - card.offsetHeight);
+          }
+        }
+        measureWorld();
+        cardData.forEach(data => {
+          const card = cards.get(data.id);
+          const item = state.get(data.id);
+          if (item.custom) {
+            item.x = item.ratioX * (worldWidth - card.offsetWidth);
+            item.y = item.ratioY * (viewport.clientHeight - card.offsetHeight);
           } else {
-            Object.assign(item, initialPosition(card, index));
+            Object.assign(item, defaultPosition(data, card));
           }
           place(card, item);
         });
+        viewport.scrollLeft = scrollRatio * Math.max(0, worldWidth - viewport.clientWidth);
+        lastViewportWidth = viewport.clientWidth;
+        lastViewportHeight = viewport.clientHeight;
       });
     });
 
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
+    renderCards();
+    initializePositions();
+    for (const card of cards.values()) attachCardInteractions(card);
+    updateTerminal();
+    setInterval(updateTerminal, 15000);
+
+    if ("serviceWorker" in navigator) {
+      let refreshing = false;
+      let hasController = Boolean(navigator.serviceWorker.controller);
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!hasController) {
+          hasController = true;
+          return;
+        }
+        if (refreshing) return;
+        const lastReload = Number(sessionStorage.getItem("today-os-sw-reload")) || 0;
+        if (Date.now() - lastReload < 10000) return;
+        refreshing = true;
+        sessionStorage.setItem("today-os-sw-reload", String(Date.now()));
+        location.reload();
+      });
+      navigator.serviceWorker.register("./sw.js").then(registration => registration.update()).catch(() => {});
+    }
   </script>
 </body>
 </html>
