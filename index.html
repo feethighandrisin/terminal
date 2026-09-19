@@ -9,6 +9,25 @@
   <title>Terminal</title>
   <style>
     * { box-sizing: border-box; }
+    :root {
+      --gyro-card-x: 0px;
+      --gyro-card-y: 0px;
+      --gyro-rotate-x: 0deg;
+      --gyro-rotate-y: 0deg;
+      --gyro-content-x: 0px;
+      --gyro-content-y: 0px;
+      --gyro-thumb-x: 0px;
+      --gyro-thumb-y: 0px;
+      --gyro-keyboard-x: 0px;
+      --gyro-keyboard-y: 0px;
+      --gyro-key-press-x: 0px;
+      --gyro-key-press-y: 0px;
+      --gyro-sink-x: 0px;
+      --gyro-sink-y: 0px;
+      --gyro-sink-skew: 0deg;
+      --gyro-terminal-x: 0px;
+      --gyro-terminal-y: 0px;
+    }
     html, body {
       margin: 0;
       width: 100%;
@@ -50,6 +69,7 @@
       --y: 0px;
       --rotation: 0deg;
       --sink-glow: 0;
+      --motion-depth: .8;
       position: absolute;
       top: 0;
       left: 0;
@@ -64,10 +84,23 @@
       cursor: grab;
       will-change: transform;
       pointer-events: auto;
+      perspective: 680px;
     }
     .card[hidden] { display: none; }
     .card:focus { outline: none; }
     .card:focus-visible .card-inner { outline: 1px solid #303030; outline-offset: 2px; }
+    .card-gyro {
+      width: 100%;
+      min-height: var(--h);
+      transform: translate3d(
+          calc(var(--gyro-card-x) * var(--motion-depth)),
+          calc(var(--gyro-card-y) * var(--motion-depth)),
+          0)
+        rotateX(calc(var(--gyro-rotate-x) * var(--motion-depth)))
+        rotateY(calc(var(--gyro-rotate-y) * var(--motion-depth)));
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
     .card-inner {
       width: 100%;
       min-height: var(--h);
@@ -79,6 +112,7 @@
       transform: scale(var(--hold-scale, 1));
       transform-origin: center;
       transition: transform 130ms cubic-bezier(.2,.7,.25,1), box-shadow 150ms ease, background 160ms ease;
+      transform-style: preserve-3d;
     }
     .card.dragging { cursor: grabbing; }
     .card.dragging .card-inner {
@@ -99,6 +133,12 @@
     .card.completing {
       animation: card-absorb 520ms cubic-bezier(.42,0,.22,1) forwards;
     }
+    .card.completing .card-gyro { transform: none; }
+    .card.completing .kind,
+    .card.completing .primary,
+    .card.completing .secondary,
+    .card.completing .detail,
+    .card.completing .thumbnail { transform: none; }
     @keyframes card-absorb {
       0% {
         transform: translate3d(var(--from-x), var(--from-y), 0) rotate(var(--rotation)) scale(.9);
@@ -130,6 +170,8 @@
     .shape-reminder { --w: 142px; --h: 92px; --surface: #141414; --radius: 19px; }
     .shape-read { --w: 218px; --h: 100px; --surface: #121212; --radius: 22px; }
     .kind {
+      position: relative;
+      z-index: 1;
       margin-bottom: 11px;
       color: #5f5f5f;
       font-size: 9px;
@@ -137,6 +179,16 @@
     }
     .primary { position: relative; z-index: 1; color: #9a9a9a; }
     .secondary { position: relative; z-index: 1; color: #707070; }
+    .kind,
+    .primary,
+    .secondary,
+    .detail {
+      transform: translate3d(
+        calc(var(--gyro-content-x) * var(--motion-depth)),
+        calc(var(--gyro-content-y) * var(--motion-depth)),
+        10px);
+      will-change: transform;
+    }
     .detail {
       position: relative;
       z-index: 1;
@@ -161,6 +213,11 @@
       overflow: hidden;
       border-radius: 14px;
       background: #090909;
+      transform: translate3d(
+        calc(var(--gyro-thumb-x) * var(--motion-depth)),
+        calc(var(--gyro-thumb-y) * var(--motion-depth)),
+        16px);
+      will-change: transform;
     }
     .thumbnail::before,
     .thumbnail::after {
@@ -214,6 +271,7 @@
         0 100%
       );
       filter: blur(20px) drop-shadow(0 0 22px rgb(6 103 48 / 34%));
+      transform: translate3d(var(--gyro-sink-x), var(--gyro-sink-y), 0) skewY(var(--gyro-sink-skew));
       transform-origin: left center;
       transition: width 85ms linear, filter 85ms linear;
     }
@@ -247,6 +305,7 @@
       user-select: none;
       -webkit-user-select: none;
       opacity: 0;
+      transform: translate3d(var(--gyro-keyboard-x), var(--gyro-keyboard-y), 0);
       animation: keyboard-reveal 1.5s ease 2s forwards;
     }
     .thumb-key {
@@ -291,7 +350,9 @@
     }
     .thumb-key.pressed {
       color: rgb(210 210 204 / 72%);
-      transform: translate(-50%, -50%) scale(1.08);
+      transform: translate(
+        calc(-50% + var(--gyro-key-press-x)),
+        calc(-50% + var(--gyro-key-press-y))) scale(1.08);
     }
     .thumb-key.pressed::before {
       opacity: 1;
@@ -360,6 +421,7 @@
       min-width: 120px;
       color: #858585;
       pointer-events: none;
+      transform: translate3d(var(--gyro-terminal-x), var(--gyro-terminal-y), 0);
     }
     .terminal-status { white-space: pre; }
     .command,
@@ -429,7 +491,7 @@
     const commandForm = document.querySelector("#command-form");
     const commandInput = document.querySelector("#command-input");
     const response = document.querySelector("#response");
-    const buildVersion = "terminal-015";
+    const buildVersion = "terminal-016";
     const storageKey = "today-os-state-v2";
     const cards = new Map();
     const state = new Map();
@@ -443,6 +505,19 @@
     let lastViewportHeight = 0;
     let commandValue = "";
     const keyTimers = new WeakMap();
+    const rootStyle = document.documentElement.style;
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+    const gyro = {
+      targetX: 0,
+      targetY: 0,
+      currentX: 0,
+      currentY: 0,
+      neutralBeta: null,
+      neutralGamma: null,
+      lastEvent: 0,
+      frame: 0,
+      listening: false
+    };
 
     const keyboardLayout = [
       ["q", 5.5, 8], ["w", 14.125, 8], ["e", 22.75, 8], ["r", 31.375, 8], ["t", 40, 8],
@@ -455,6 +530,126 @@
     ];
 
     const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
+
+    function applyGyroVariables(x, y) {
+      rootStyle.setProperty("--gyro-card-x", `${(x * 5.2).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-card-y", `${(y * 4.4).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-rotate-x", `${(y * -1.65).toFixed(3)}deg`);
+      rootStyle.setProperty("--gyro-rotate-y", `${(x * 1.9).toFixed(3)}deg`);
+      rootStyle.setProperty("--gyro-content-x", `${(x * .72).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-content-y", `${(y * .58).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-thumb-x", `${(x * 1.55).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-thumb-y", `${(y * 1.25).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-keyboard-x", `${(x * -.65).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-keyboard-y", `${(y * -.48).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-key-press-x", `${(x * 1.05).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-key-press-y", `${(y * .85).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-sink-x", `${(x * -.95).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-sink-y", `${(y * -.72).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-sink-skew", `${(y * .42).toFixed(3)}deg`);
+      rootStyle.setProperty("--gyro-terminal-x", `${(x * .22).toFixed(3)}px`);
+      rootStyle.setProperty("--gyro-terminal-y", `${(y * .18).toFixed(3)}px`);
+    }
+
+    function gyroFrame(now) {
+      if (!gyro.listening || reducedMotion.matches) {
+        gyro.frame = 0;
+        return;
+      }
+      if (now - gyro.lastEvent > 800) {
+        gyro.targetX *= .96;
+        gyro.targetY *= .96;
+      }
+      gyro.currentX += (gyro.targetX - gyro.currentX) * .06;
+      gyro.currentY += (gyro.targetY - gyro.currentY) * .06;
+      applyGyroVariables(gyro.currentX, gyro.currentY);
+      gyro.frame = requestAnimationFrame(gyroFrame);
+    }
+
+    function recenterGyro() {
+      gyro.neutralBeta = null;
+      gyro.neutralGamma = null;
+      gyro.targetX = 0;
+      gyro.targetY = 0;
+    }
+
+    function handleOrientation(event) {
+      if (reducedMotion.matches || event.beta == null || event.gamma == null) return;
+      const beta = Number(event.beta);
+      const gamma = Number(event.gamma);
+      if (!Number.isFinite(beta) || !Number.isFinite(gamma)) return;
+      gyro.lastEvent = performance.now();
+      if (gyro.neutralBeta == null || gyro.neutralGamma == null) {
+        gyro.neutralBeta = beta;
+        gyro.neutralGamma = gamma;
+        gyro.targetX = 0;
+        gyro.targetY = 0;
+        if (!gyro.frame) gyro.frame = requestAnimationFrame(gyroFrame);
+        return;
+      }
+
+      let deltaBeta = beta - gyro.neutralBeta;
+      let deltaGamma = gamma - gyro.neutralGamma;
+      if (Math.abs(deltaBeta) > 28) gyro.neutralBeta += deltaBeta * .035;
+      if (Math.abs(deltaGamma) > 28) gyro.neutralGamma += deltaGamma * .035;
+      deltaBeta = clamp(beta - gyro.neutralBeta, -15, 15) / 15;
+      deltaGamma = clamp(gamma - gyro.neutralGamma, -15, 15) / 15;
+
+      const angle = ((screen.orientation?.angle ?? window.orientation ?? 0) + 360) % 360;
+      if (angle === 90) {
+        gyro.targetX = deltaBeta;
+        gyro.targetY = -deltaGamma;
+      } else if (angle === 270) {
+        gyro.targetX = -deltaBeta;
+        gyro.targetY = deltaGamma;
+      } else if (angle === 180) {
+        gyro.targetX = -deltaGamma;
+        gyro.targetY = -deltaBeta;
+      } else {
+        gyro.targetX = deltaGamma;
+        gyro.targetY = deltaBeta;
+      }
+    }
+
+    function startMotionTracking() {
+      if (gyro.listening || reducedMotion.matches) return;
+      gyro.listening = true;
+      addEventListener("deviceorientation", handleOrientation, { passive: true });
+      addEventListener("orientationchange", recenterGyro, { passive: true });
+      screen.orientation?.addEventListener?.("change", recenterGyro);
+    }
+
+    function stopMotionTracking() {
+      if (gyro.listening) {
+        removeEventListener("deviceorientation", handleOrientation);
+        removeEventListener("orientationchange", recenterGyro);
+        screen.orientation?.removeEventListener?.("change", recenterGyro);
+      }
+      gyro.listening = false;
+      cancelAnimationFrame(gyro.frame);
+      gyro.frame = 0;
+      Object.assign(gyro, { targetX: 0, targetY: 0, currentX: 0, currentY: 0, neutralBeta: null, neutralGamma: null });
+      applyGyroVariables(0, 0);
+    }
+
+    function initializeMotionTracking() {
+      if (reducedMotion.matches || !("DeviceOrientationEvent" in window)) return;
+      if (typeof DeviceOrientationEvent.requestPermission === "function") {
+        const requestMotion = async () => {
+          try {
+            if (await DeviceOrientationEvent.requestPermission() === "granted") startMotionTracking();
+          } catch { }
+        };
+        addEventListener("pointerdown", requestMotion, { once: true, capture: true });
+      } else {
+        startMotionTracking();
+      }
+    }
+
+    reducedMotion.addEventListener?.("change", event => {
+      if (event.matches) stopMotionTracking();
+      else initializeMotionTracking();
+    });
 
     function readSavedState() {
       try {
@@ -477,13 +672,13 @@
         card.setAttribute("aria-expanded", "false");
         card.style.setProperty("--rotation", `${data.rotation}deg`);
         card.style.zIndex = saved.positions?.[data.id]?.z || index + 1;
-        card.innerHTML = `<div class="card-inner">
-          <div class="kind">${data.kind}</div>
-          <div class="primary">${data.primary}</div>
-          <div class="secondary">${data.secondary}</div>
-          <div class="detail">${data.detail}</div>
-          ${data.thumbnail ? '<div class="thumbnail" aria-hidden="true"></div>' : ""}
-        </div>`;
+        card.innerHTML = `<div class="card-gyro"><div class="card-inner">
+            <div class="kind">${data.kind}</div>
+            <div class="primary">${data.primary}</div>
+            <div class="secondary">${data.secondary}</div>
+            <div class="detail">${data.detail}</div>
+            ${data.thumbnail ? '<div class="thumbnail" aria-hidden="true"></div>' : ""}
+          </div></div>`;
         card.hidden = completed.has(data.id);
         world.append(card);
         cards.set(data.id, card);
@@ -568,9 +763,22 @@
       } catch { }
     }
 
+    function updateCardDepths() {
+      const visible = [...cards.values()]
+        .filter(card => !card.hidden)
+        .sort((a, b) => (Number(a.style.zIndex) || 0) - (Number(b.style.zIndex) || 0));
+      const span = Math.max(visible.length - 1, 1);
+      visible.forEach((card, index) => {
+        const depth = .72 + index / span * .38;
+        card.dataset.depth = depth.toFixed(3);
+        if (!card.classList.contains("dragging")) card.style.setProperty("--motion-depth", depth.toFixed(3));
+      });
+    }
+
     function bringToFront(card) {
       topLayer += 1;
       card.style.zIndex = topLayer;
+      updateCardDepths();
     }
 
     function toggleCard(card, forceOpen = false) {
@@ -603,6 +811,8 @@
       sink.classList.toggle("magnetic", distance < 205);
       sink.classList.toggle("engaged", pointer.inside);
       card.style.setProperty("--sink-glow", cardGlow.toFixed(3));
+      const baseDepth = Number(card.dataset.depth) || .9;
+      card.style.setProperty("--motion-depth", (baseDepth * (1.18 - cardGlow * 1.12)).toFixed(3));
       card.classList.toggle("sink-engaged", pointer.inside);
       card.style.setProperty("--hold-scale", String(pointer.inside ? .9 : 1.025 - intensity * .105));
       return distance;
@@ -617,6 +827,7 @@
       if (card) {
         card.style.removeProperty("--hold-scale");
         card.style.removeProperty("--sink-glow");
+        card.style.setProperty("--motion-depth", card.dataset.depth || ".8");
         card.classList.remove("sink-engaged");
       }
     }
@@ -673,6 +884,7 @@
         card.style.removeProperty("--to-x");
         card.style.removeProperty("--to-y");
         clearSink(card);
+        updateCardDepths();
       }, 530);
     }
 
@@ -863,6 +1075,7 @@
         setTimeout(() => card.classList.remove("command-moving"), 440);
       });
       topLayer = cardData.length;
+      updateCardDepths();
       viewport.scrollTo({ left: 0, behavior: "smooth" });
       saveState();
       updateTerminal();
@@ -1038,6 +1251,7 @@
     viewport.addEventListener("pointercancel", releaseBackground);
 
     addEventListener("resize", () => {
+      recenterGyro();
       cancelAnimationFrame(resizeFrame);
       resizeFrame = requestAnimationFrame(() => {
         const oldWorldWidth = worldWidth;
@@ -1073,10 +1287,12 @@
     renderCards();
     renderKeyboard();
     initializePositions();
+    updateCardDepths();
     saveState();
     for (const card of cards.values()) attachCardInteractions(card);
     updateTerminal();
     setInterval(updateTerminal, 15000);
+    initializeMotionTracking();
 
     if ("serviceWorker" in navigator) {
       let refreshing = false;
