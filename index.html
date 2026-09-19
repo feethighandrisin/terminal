@@ -177,22 +177,22 @@
       transition: opacity 100ms linear;
     }
     body.drag-active .sink {
-      opacity: calc(.24 + var(--intensity) * .76);
+      opacity: calc(.42 + var(--intensity) * .58);
     }
     .sink::before {
       content: "";
       position: absolute;
-      inset: 8px;
+      inset: -8px;
       border-radius: 50%;
       background: radial-gradient(circle at center,
-        #000 0 18%,
-        rgb(0 5 2 / 98%) 22%,
-        rgb(7 78 38 / 82%) 31%,
-        rgb(3 53 26 / 62%) 45%,
-        rgb(1 24 12 / 32%) 59%,
-        rgb(0 8 4 / 0%) 75%);
-      filter: blur(10px);
-      transform: scale(calc(.78 + var(--intensity) * .34));
+        #000 0 17%,
+        rgb(0 7 3 / 100%) 21%,
+        rgb(10 129 61 / 98%) 30%,
+        rgb(4 87 42 / 82%) 44%,
+        rgb(2 49 24 / 52%) 61%,
+        rgb(0 10 5 / 0%) 82%);
+      filter: blur(8px) drop-shadow(0 0 20px rgb(5 96 46 / 50%));
+      transform: scale(calc(.88 + var(--intensity) * .38));
       transition: transform 90ms linear, filter 90ms linear;
     }
     .sink::after {
@@ -200,13 +200,13 @@
       position: absolute;
       left: 50%;
       top: 48%;
-      width: 138px;
-      height: 34px;
+      width: 160px;
+      height: 42px;
       border-radius: 50%;
-      background: linear-gradient(90deg, rgb(8 94 46 / 68%), rgb(2 36 18 / 28%) 55%, rgb(0 8 4 / 0%));
-      filter: blur(12px);
-      opacity: calc(.08 + var(--intensity) * .92);
-      transform: rotate(var(--angle)) scaleX(calc(.38 + var(--intensity) * 1.2));
+      background: linear-gradient(90deg, rgb(12 146 69 / 82%), rgb(4 69 34 / 44%) 55%, rgb(0 10 5 / 0%));
+      filter: blur(11px);
+      opacity: calc(.16 + var(--intensity) * .84);
+      transform: rotate(var(--angle)) scaleX(calc(.48 + var(--intensity) * 1.28));
       transform-origin: left center;
     }
     .sink-core {
@@ -218,17 +218,17 @@
       height: 46px;
       border-radius: 50%;
       background: #000;
-      box-shadow: 0 0 0 1px rgb(11 103 51 / 46%), 0 0 20px rgb(5 83 41 / 38%);
+      box-shadow: 0 0 0 1px rgb(15 128 61 / 68%), 0 0 28px rgb(7 109 52 / 55%);
       transform: translate(-50%, -50%) scale(calc(1.04 - var(--intensity) * .16));
       transition: transform 90ms linear, box-shadow 90ms linear;
     }
-    .sink.magnetic::before { filter: blur(9px) brightness(1.14); }
+    .sink.magnetic::before { filter: blur(8px) brightness(1.35) drop-shadow(0 0 24px rgb(7 119 56 / 62%)); }
     .sink.engaged::before {
-      filter: blur(8px) brightness(1.35);
-      transform: scale(.94);
+      filter: blur(7px) brightness(1.65) drop-shadow(0 0 30px rgb(9 148 68 / 78%));
+      transform: scale(.97);
     }
     .sink.engaged .sink-core {
-      box-shadow: 0 0 0 1px rgb(18 142 68 / 78%), 0 0 28px rgb(7 112 53 / 62%);
+      box-shadow: 0 0 0 1px rgb(26 179 84 / 92%), 0 0 40px rgb(10 153 70 / 82%);
       transform: translate(-50%, -50%) scale(.78);
     }
     .sink-center-dot {
@@ -248,20 +248,21 @@
     .sink.absorbing::after { animation: absorb-trail 520ms cubic-bezier(.45,0,.18,1) forwards; }
     .sink.absorbing .sink-core { animation: absorb-core 520ms cubic-bezier(.45,0,.18,1) forwards; }
     @keyframes absorb {
-      0% { transform: scale(.94); opacity: 1; filter: blur(8px) brightness(1.25); }
-      22% { transform: scale(1.08); opacity: 1; filter: blur(8px) brightness(1.48); }
-      64% { transform: scale(.52); opacity: 1; filter: blur(7px) brightness(1.7); }
-      100% { transform: scale(.05); opacity: 0; filter: blur(4px) brightness(1.15); }
+      0% { transform: scale(.97); opacity: 1; filter: blur(7px) brightness(1.45) drop-shadow(0 0 24px rgb(8 132 62 / 72%)); }
+      22% { transform: scale(1.18); opacity: 1; filter: blur(7px) brightness(1.9) drop-shadow(0 0 38px rgb(12 175 80 / 88%)); }
+      58% { transform: scale(.62); opacity: 1; filter: blur(6px) brightness(2.1) drop-shadow(0 0 32px rgb(10 164 75 / 90%)); }
+      80% { transform: scale(.18); opacity: .9; filter: blur(5px) brightness(2.35) drop-shadow(0 0 22px rgb(8 147 67 / 86%)); }
+      100% { transform: scale(.03); opacity: 0; filter: blur(3px) brightness(1.2) drop-shadow(0 0 0 rgb(0 0 0 / 0%)); }
     }
     @keyframes absorb-trail {
-      0%, 24% { opacity: 1; transform: rotate(var(--angle)) scaleX(1.45); }
-      70% { opacity: .8; transform: rotate(var(--angle)) scaleX(.42); }
+      0%, 24% { opacity: 1; transform: rotate(var(--angle)) scaleX(1.72); }
+      70% { opacity: .9; transform: rotate(var(--angle)) scaleX(.48); }
       100% { opacity: 0; transform: rotate(var(--angle)) scaleX(.05); }
     }
     @keyframes absorb-core {
-      0% { transform: translate(-50%, -50%) scale(.78); box-shadow: 0 0 28px rgb(8 129 60 / 72%); }
-      25% { transform: translate(-50%, -50%) scale(1.08); box-shadow: 0 0 38px rgb(10 151 69 / 84%); }
-      68% { transform: translate(-50%, -50%) scale(.42); box-shadow: 0 0 22px rgb(6 117 53 / 78%); }
+      0% { transform: translate(-50%, -50%) scale(.78); box-shadow: 0 0 34px rgb(10 160 73 / 84%); }
+      25% { transform: translate(-50%, -50%) scale(1.12); box-shadow: 0 0 54px rgb(14 207 92 / 96%); }
+      68% { transform: translate(-50%, -50%) scale(.38); box-shadow: 0 0 34px rgb(9 177 78 / 92%); }
       100% { transform: translate(-50%, -50%) scale(.02); box-shadow: 0 0 0 rgb(0 0 0 / 0%); }
     }
     @media (min-width: 600px) {
