@@ -292,10 +292,10 @@
       transform: scale(1.08);
     }
     .thumb-key.afterglow {
-      animation: key-letter-afterglow 360ms ease-out forwards;
+      animation: key-letter-afterglow 1080ms ease-out forwards;
     }
     .thumb-key.afterglow::before {
-      animation: key-afterglow 360ms ease-out forwards;
+      animation: key-afterglow 1080ms ease-out forwards;
     }
     .thumb-key.control {
       color: rgb(139 139 139 / 11%);
@@ -315,7 +315,7 @@
       border-radius: 50%;
     }
     .thumb-key.space span {
-      width: 18px;
+      width: 26px;
       height: 1px;
       background: currentColor;
     }
@@ -429,7 +429,7 @@
     const commandForm = document.querySelector("#command-form");
     const commandInput = document.querySelector("#command-input");
     const response = document.querySelector("#response");
-    const buildVersion = "terminal-011";
+    const buildVersion = "terminal-012";
     const storageKey = "today-os-state-v2";
     const cards = new Map();
     const state = new Map();
@@ -920,7 +920,7 @@
       void key.offsetWidth;
       key.classList.add("afterglow");
       clearTimeout(keyTimers.get(key));
-      keyTimers.set(key, setTimeout(() => key.classList.remove("afterglow"), 370));
+      keyTimers.set(key, setTimeout(() => key.classList.remove("afterglow"), 1090));
     }
 
     function renderKeyboard() {
