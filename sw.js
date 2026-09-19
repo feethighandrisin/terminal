@@ -1,4 +1,4 @@
-const CACHE = "terminal-010";
+const CACHE = "terminal-011";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", event => {
